@@ -54,8 +54,9 @@ function workspacePage(entries, entryId, goal) {
             <textarea name="notes" rows="5" maxlength="12000" placeholder="Paste a lecture excerpt or describe what you want to practice."></textarea>
           </label>
           <label class="study-field">Study materials <span class="muted">(optional)</span>
-            <input name="sources" type="file" accept=".txt,.md,text/plain,text/markdown" multiple aria-describedby="study-file-hint study-form-error">
+            <input id="study-sources" name="sources" type="file" accept=".txt,.md,text/plain,text/markdown" multiple aria-describedby="study-file-hint study-form-error">
             <small id="study-file-hint" class="muted">Plain text or Markdown, up to 256 KB total.</small>
+            <div id="source-meta" class="source-meta" aria-live="polite"></div>
           </label>
           <p class="study-error" id="study-form-error" role="alert" hidden></p>
           <div class="study-form-footer">
@@ -63,6 +64,36 @@ function workspacePage(entries, entryId, goal) {
             <small class="muted">Uses a local study plan template. GrinderAI model access is pending.</small>
           </div>
         </form>
+        <script type="text/javascript">
+          // Populate editable title and page range fields per uploaded file
+          const fileInput = document.getElementById('study-sources');
+          const metaDiv = document.getElementById('source-meta');
+          fileInput && fileInput.addEventListener('change', () => {
+            metaDiv.innerHTML = '';
+            Array.from(fileInput.files).forEach((file, idx) => {
+              const pageRegex = /^(.*[\-._])?(\d+)[\-._](\d+)\/?.*\.(txt|md|pdf)$/i;
+              const match = pageRegex.exec(file.name);
+              let pages = '';
+              if (match) {
+                pages = match[2] + '–' + match[3];
+              }
+              metaDiv.innerHTML += \`
+                <div class="source-item" style="margin:4px 0;padding:2px 0;border-bottom:1px solid var(--border);">
+                  <label style="display:block;margin-bottom:2px;">
+                    <span class="muted">Source ${idx + 1}:</span> ${escapeHtml(file.name)}
+                  </label>
+                  <label style="display:block;">
+                    <small class="muted">Title</small>
+                    <input name="source-title-${idx}" type="text" value="${escapeHtml(file.name)}" style="width:100%;" />
+                  </label>
+                  <label style="display:block;">
+                    <small class="muted">Pages</small>
+                    <input name="source-pages-${idx}" type="text" value="${pages}" style="width:100%;" />
+                  </label>
+                </div>\`;
+            });
+          });
+        </script>
       </section>
       <aside class="panel study-aside" aria-labelledby="recent-plan-heading">
         <h2 class="section-title" id="recent-plan-heading">Your study plans</h2>
@@ -72,7 +103,9 @@ function workspacePage(entries, entryId, goal) {
 }
 
 function sourcePreview(source) {
-  return `<details class="study-source">
+  const detailsId = `source-${source.id}`;
+  return `<a href="#${detailsId}" class="study-citation" onclick="document.getElementById('${detailsId}').open = true; return false;">${escapeHtml(source.name)}${source.pages ? '(' + source.pages + ')' : ''}</a>
+  <details class="study-source" id="${detailsId}">
     <summary>${icon('file-text', 18)} <span>${escapeHtml(source.name)}</span></summary>
     <pre>${escapeHtml(source.text)}</pre>
   </details>`;
@@ -331,8 +364,16 @@ async function addStudyPlan(form, { commit, navigate, notify }) {
 
   submitButton.disabled = true;
   try {
-    const sources = await Promise.all(files.map(async (file) => ({
-      id: crypto.randomUUID(), name: file.name, text: (await file.text()).trim(),
+    const sources = await Promise.all(files.map(async (file, idx) => ({
+      id: crypto.randomUUID(),
+      // Prefer user-provided title if it exists.
+      name: (form.elements.namedItem(`source-title-${idx}`)?.value.trim() || file.name),
+      text: (await file.text()).trim(),
+      // Prefer user-provided pages; otherwise attempt to extract from filename.
+      pages: (form.elements.namedItem(`source-pages-${idx}`)?.value.trim() || (() => {
+        const m = file.name.match(/(\d+)[–-](\d+)/i);
+        return m ? `${m[1]}–${m[2]}` : undefined;
+      })()),
     })));
     if (sources.some(({ text }) => !text || text.includes('\0'))) {
       showFormError(form, 'Choose files that contain readable text.', 'sources');
@@ -388,3 +429,4 @@ export async function handleStudySubmit(form, context) {
     default: return false;
   }
 }
+export { sourcePreview };
