@@ -2,6 +2,8 @@ import { createStudyPlan, getTrack, sampleQuestions, tracks } from './learning.j
 import { escapeHtml, icon } from './ui.js';
 
 const uploadLimit = 256 * 1024;
+const sourceTitleLimit = 200;
+const sourcePagesLimit = 60;
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
 let practiceSession;
 
@@ -56,19 +58,14 @@ function workspacePage(entries, entryId, goal) {
           <label class="study-field">Study materials <span class="muted">(optional)</span>
             <input id="study-sources" name="sources" type="file" accept=".txt,.md,text/plain,text/markdown" multiple aria-describedby="study-file-hint study-form-error">
             <small id="study-file-hint" class="muted">Plain text or Markdown, up to 256 KB total.</small>
-            <div id="source-meta" class="source-meta" aria-live="polite"></div>
           </label>
+          <div id="source-meta" class="source-meta" hidden></div>
           <p class="study-error" id="study-form-error" role="alert" hidden></p>
           <div class="study-form-footer">
             <button class="button button-primary" type="submit">${icon('sparkles', 18)} Create plan</button>
             <small class="muted">Uses a local study plan template. GrinderAI model access is pending.</small>
           </div>
         </form>
-        <script>
-          const form = document.querySelector('form[data-study-form="workspace"]');
-          attachSourceChangeHandler(form);
-        </script>
-        // script removed – handler now in module
       </section>
       <aside class="panel study-aside" aria-labelledby="recent-plan-heading">
         <h2 class="section-title" id="recent-plan-heading">Your study plans</h2>
@@ -78,45 +75,33 @@ function workspacePage(entries, entryId, goal) {
 }
 
 function sourcePreview(source) {
-  const detailsId = `source-${source.id}`;
-  return `<a href="#${detailsId}" class="study-citation" onclick="document.getElementById('${detailsId}').open = true; return false;">${escapeHtml(source.name)}${source.pages ? '(' + source.pages + ')' : ''}</a>
-  <details class="study-source" id="${detailsId}">
-    <summary>${icon('file-text', 18)} <span>${escapeHtml(source.name)}</span></summary>
+  const title = escapeHtml(source.title || source.name);
+  const pages = source.pages ? ` (${escapeHtml(source.pages)})` : '';
+  return `<details class="study-source" id="source-${escapeHtml(source.id)}">
+    <summary class="study-citation">${icon('file-text', 18)} <span>${title}${pages}</span></summary>
     <pre>${escapeHtml(source.text)}</pre>
   </details>`;
 }
 
-// Attach source change handler for dynamically added files
-function attachSourceChangeHandler(form) {
-  const fileInput = form.querySelector('input[name="sources"]');
-  const metaDiv = form.querySelector('#source-meta');
-  if (!fileInput || !metaDiv) return;
-  fileInput.addEventListener('change', () => {
-    metaDiv.innerHTML = '';
-    Array.from(fileInput.files).forEach((file, idx) => {
-      const pageRegex = /^(.*[\-._])?(\d+)[\-._](\d+)\/?.*\.(txt|md|pdf)$/i;
-      const match = pageRegex.exec(file.name);
-      let pages = '';
-      if (match) {
-        pages = match[2] + '–' + match[3];
-      }
-      metaDiv.innerHTML += `
-        <div class="source-item" style="margin:4px 0;padding:2px 0;border-bottom:1px solid var(--border);">
-          <label style="display:block;margin-bottom:2px;">
-            <span class="muted">Source ${idx + 1}:</span> ${escapeHtml(file.name)}
-          </label>
-          <label style="display:block;">
-            <small class="muted">Title</small>
-            <input name="source-title-${idx}" type="text" value="${escapeHtml(file.name)}" style="width:100%;" />
-          </label>
-          <label style="display:block;">
-            <small class="muted">Pages</small>
-            <input name="source-pages-${idx}" type="text" value="${pages}" style="width:100%;" />
-          </label>
-        </div>`;
-    });
-  });
+export function handleStudySourceChange(input) {
+  const metadata = input.form?.querySelector('#source-meta');
+  if (!metadata) return;
+  const files = Array.from(input.files);
+  metadata.hidden = files.length === 0;
+  metadata.innerHTML = files.map((file, index) => `
+    <fieldset class="source-item">
+      <legend>${escapeHtml(file.name)}</legend>
+      <label class="study-field">
+        <span>Source title</span>
+        <input name="source-title-${index}" type="text" maxlength="${sourceTitleLimit}" value="${escapeHtml(file.name.slice(0, sourceTitleLimit))}">
+      </label>
+      <label class="study-field">
+        <span>Pages (optional)</span>
+        <input name="source-pages-${index}" type="text" maxlength="${sourcePagesLimit}" placeholder="e.g. 25–28">
+      </label>
+    </fieldset>`).join('');
 }
+
 function studyPlanPage(entry) {
   const completed = entry.tasks.filter((task) => task.done).length;
   const createdDate = dateFormat.format(new Date(entry.createdAt));
@@ -370,17 +355,17 @@ async function addStudyPlan(form, { commit, navigate, notify }) {
 
   submitButton.disabled = true;
   try {
-    const sources = await Promise.all(files.map(async (file, idx) => ({
-      id: crypto.randomUUID(),
-      // Prefer user-provided title if it exists.
-      name: (form.elements.namedItem(`source-title-${idx}`)?.value.trim() || file.name),
-      text: (await file.text()).trim(),
-      // Prefer user-provided pages; otherwise attempt to extract from filename.
-      pages: (form.elements.namedItem(`source-pages-${idx}`)?.value.trim() || (() => {
-        const m = file.name.match(/(\d+)[–-](\d+)/i);
-        return m ? `${m[1]}–${m[2]}` : undefined;
-      })()),
-    })));
+    const sources = await Promise.all(files.map(async (file, index) => {
+      const title = form.elements.namedItem(`source-title-${index}`)?.value.trim().slice(0, sourceTitleLimit);
+      const pages = form.elements.namedItem(`source-pages-${index}`)?.value.trim().slice(0, sourcePagesLimit);
+      return {
+        id: crypto.randomUUID(),
+        name: file.name,
+        title: title || file.name,
+        text: (await file.text()).trim(),
+        ...(pages ? { pages } : {}),
+      };
+    }));
     if (sources.some(({ text }) => !text || text.includes('\0'))) {
       showFormError(form, 'Choose files that contain readable text.', 'sources');
       return;
