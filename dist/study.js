@@ -64,7 +64,10 @@ function workspacePage(entries, entryId, goal) {
             <small class="muted">Uses a local study plan template. GrinderAI model access is pending.</small>
           </div>
         </form>
-        attachSourceChangeHandler(form);
+        <script>
+          const form = document.querySelector('form[data-study-form="workspace"]');
+          attachSourceChangeHandler(form);
+        </script>
         // script removed – handler now in module
       </section>
       <aside class="panel study-aside" aria-labelledby="recent-plan-heading">
