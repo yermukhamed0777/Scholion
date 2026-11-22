@@ -4,7 +4,7 @@ ALLaroundPREP is a study workspace for exam prep, university courses, and workpl
 
 ## Run locally
 
-Use Node.js 22 or later. The project has no external dependencies to install.
+Use Node.js 22 or later to run the app. The preview server and browser app have no runtime dependencies.
 
 ```bash
 npm start
@@ -12,10 +12,21 @@ npm start
 
 Open [ALLaroundPREP in your browser](http://127.0.0.1:4173). Run `npm run check` to check the JavaScript syntax. The `dist/` directory contains the browser app and assets and can be served by any static host.
 
+## Test the study flow
+
+Use Node.js 24.15 or later in the Node 24 series for the test dependencies.
+
+```bash
+npm ci
+npm test
+```
+
+The regression test opens the app in a simulated browser environment, selects synthetic attachments, submits the plan, and checks that citations still open the matching passages after the app is mounted again with the saved state.
+
 ## What the foundation supports
 
-- Browse and bookmark SAT, ACT, AP, IELTS, and regional exam tracks, along with university course examples in Discrete Mathematics and Introduction to Finance.
-- Create a study plan from a goal, attach a `.txt` or `.md` file, and check off study tasks. Plans use local templates and are saved alongside notes, bookmarks, and progress in the browser for that site address.
+- Browse and bookmark SAT, ACT, AP, IELTS, and regional exam tracks, along with university course examples in Discrete Mathematics and Introduction to Finance. Exam details link to official resources.
+- Create a study plan from a goal, attach `.txt` or `.md` files, and give each attachment a source title and optional page range. Open its citation in the plan or Materials to read the excerpt. Plans use local templates and are saved alongside notes, bookmarks, and progress in the browser for that site address.
 - Try original sample questions for SAT, Discrete Mathematics, and Introduction to Finance. Each question includes an explanation after grading.
 
 The regional catalog includes Kazakhstan’s UNT, Kyrgyzstan’s ORT, Russia’s EGE, China’s Gaokao, Hong Kong’s HKDSE, and a separate track for Uzbekistan’s university entrance tests. [Kyrgyzstan’s testing center](https://testing.kg/) · [Uzbekistan’s Ministry of Higher Education](https://gov.uz/en/edu/news/view/142572)
