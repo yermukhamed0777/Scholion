@@ -1,4 +1,5 @@
 import { getTrack, sampleQuestions, tracks } from './learning.js';
+import { sourceRegistry } from './source-registry.js';
 import { handleStudyAction, handleStudySubmit, renderStudyPage } from './study.js';
 import { escapeHtml, icon } from './ui.js';
 
@@ -19,6 +20,10 @@ const categoryLabels = {
   regional: 'Regional exam',
   university: 'University course',
 };
+const trackSourceCounts = {};
+sourceRegistry.forEach(sr => {
+  trackSourceCounts[sr.trackId] = (trackSourceCounts[sr.trackId] || 0) + 1;
+});
 const navGroups = [
   ['Workspace', [
     ['home', 'Overview', 'layout-dashboard'],
@@ -236,7 +241,8 @@ function trackDetail(track) {
   const hasPractice = sampleTrackIds.has(track.id);
   return `<div class="track-detail" data-tone="${track.tone}">
     ${pageHeading(escapeHtml(track.name), `${escapeHtml(categoryLabels[track.category])} · ${escapeHtml(track.region)}`,
-      '<a class="button button-secondary" href="#/catalog">All tracks</a>')}
+    '<a class="button button-secondary" href="#/catalog">All tracks</a>')}
+    ${trackSourceCounts[track.id] ? '<p class="track-sources"><small>Sources: ' + trackSourceCounts[track.id] + '</small></p>' : ''}
     <section class="track-detail-header panel" aria-labelledby="track-overview">
       <div class="track-card-top"><span class="track-mark">${icon(trackIcon(track), 23)}</span>${trackSaveButton(track)}</div>
       <h2 id="track-overview">Track overview</h2>
@@ -377,6 +383,40 @@ root.addEventListener('submit', event => {
   event.preventDefault();
   handleStudySubmit(event.target, context()).catch(() => {
     notify('This action could not be completed. Please try again.');
+  });
+});
+
+// Attach a delegated listener for file input changes on the workspace form.
+// The original inline script inserted in workspacePage does not run because it is
+// added via `innerHTML`. To avoid missing metadata, we add a change listener
+// that renders the source metadata section whenever the user selects files.
+root.addEventListener('change', event => {
+  const target = event.target;
+  if (!target.matches('input[name="sources"]')) return;
+  const form = target.form;
+  const metaDiv = form.querySelector('#source-meta');
+  if (!metaDiv) return;
+  metaDiv.innerHTML = '';
+  Array.from(target.files).forEach((file, idx) => {
+    const pageRegex = /^(.*[\-._])?(\d+)[\-._](\d+)\/?.*\.(txt|md|pdf)$/i;
+    const match = pageRegex.exec(file.name);
+    let pages = '';
+    if (match) {
+      pages = match[2] + '–' + match[3];
+    }
+    metaDiv.innerHTML += `<div class="source-item" style="margin:4px 0;padding:2px 0;border-bottom:1px solid var(--border);">
+      <label style="display:block;margin-bottom:2px;">
+        <span class="muted">Source ${idx + 1}:</span> ${escapeHtml(file.name)}
+      </label>
+      <label style="display:block;">
+        <small class="muted">Title</small>
+        <input name="source-title-${idx}" type="text" value="${escapeHtml(file.name)}" style="width:100%;" />
+      </label>
+      <label style="display:block;">
+        <small class="muted">Pages</small>
+        <input name="source-pages-${idx}" type="text" value="${pages}" style="width:100%;" />
+      </label>
+    </div>`;
   });
 });
 
