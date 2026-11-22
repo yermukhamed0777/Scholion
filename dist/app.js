@@ -353,6 +353,27 @@ root.addEventListener('click', event => {
       button.setAttribute('aria-pressed', String(button === target));
     });
     refreshTrackResults(page);
+  } else if (action === 'generate-study') {
+    // Generate study material for the selected source via API
+    const entryId = target.dataset.studyId;
+    const dataKey = 'allaroundprep:v1';
+    let store;
+    try {
+      store = JSON.parse(localStorage.getItem(dataKey));
+    } catch { return; }
+    const entry = store?.entries?.find(e => e.id === entryId);
+    if (!entry) { notify('Entry not found.'); return; }
+    const source = entry.sources[0] || {};
+    const payload = { sourceId: source.id, title: source.title, text: source.text, pages: source.pages };
+    fetch('/api/generate-study', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), timeout: 15000,
+    })
+      .then(resp => resp.ok ? resp.json() : Promise.reject(`HTTP ${resp.status}`))
+      .then(result => {
+        const container = document.getElementById(`generated-material-${entryId}`);
+        container.innerHTML = `\n        <h3 class="muted">Generated explanation</h3>\n        <p>${escapeHtml(result.explanation)}</p>\n        ${result.question ? `<h3 class="muted">Question</h3>\n        <p>${escapeHtml(result.question.prompt)}<br>${result.question.rationale}</p>` : ''}`;
+      })
+      .catch(err => notify('Failed to generate study material: ' + err));
   } else if (action === 'save-track' && getTrack(trackId)) {
     if (!commit(current => ({
       ...current,

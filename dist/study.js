@@ -127,6 +127,8 @@ function studyPlanPage(entry) {
         ${entry.sources.map(sourcePreview).join('')}
         ${entry.notes || entry.sources.length ? '' : '<p class="muted">This plan started with a topic.</p>'}
         <a class="button button-secondary" href="#/materials">All materials</a>
+        ${entry.sources.length ? `<button class="button button-primary generate-study" data-study-id="${escapeHtml(entry.id)}" data-action="generate-study">Generate study from selected source</button>` : ''}
+        <div class="generated-material" id="generated-material-${entry.id}"></div>
       </aside>
     </div>`;
 }

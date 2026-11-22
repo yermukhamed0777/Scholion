@@ -19,6 +19,28 @@ if (!Number.isInteger(port) || port < 0 || port > 65535) {
 }
 
 const server = createServer(async (request, response) => {
+  if (request.method === 'POST' && request.url.startsWith('/api/generate-study')) {
+    let data = '';
+    request.on('data', chunk => data += chunk);
+    request.on('end', () => {
+      try {
+        const payload = JSON.parse(data);
+        const { title } = payload;
+        const explanation = `This is a concise explanation of **${title}**.`;
+        const question = {
+          prompt: 'What is the main concept discussed?',
+          choices: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correctIndex: 2,
+          rationale: `The correct answer is based on the content of the source titled ${title}.`,
+        };
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ explanation, question }));
+      } catch (e) {
+        response.writeHead(400).end('Invalid JSON');
+      }
+    });
+    return;
+  }
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     response.writeHead(405, { Allow: 'GET, HEAD' }).end();
     return;
