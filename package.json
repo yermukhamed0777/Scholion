@@ -1,0 +1,14 @@
+{
+  "name": "allaroundprep",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A learning workspace for exams, university courses, and workplace learning.",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "check": "node --check dist/app.js && node --check dist/ui.js && node --check dist/learning.js && node --check dist/study.js && node --check scripts/serve.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

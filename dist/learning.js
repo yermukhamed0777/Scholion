@@ -1,0 +1,230 @@
+export const tracks = [
+  {
+    id: "sat",
+    name: "SAT",
+    category: "international",
+    region: "United States",
+    description: "Build confidence with algebra, data interpretation, and reading and writing practice.",
+    topics: ["Algebra", "Problem Solving and Data Analysis", "Reading and Writing"],
+    tone: "blue",
+  },
+  {
+    id: "act",
+    name: "ACT",
+    category: "international",
+    region: "United States",
+    description: "Make a study plan for English, math, reading, and science practice.",
+    topics: ["English", "Mathematics", "Reading", "Science"],
+    tone: "red",
+  },
+  {
+    id: "ap",
+    name: "AP",
+    category: "international",
+    region: "United States",
+    description: "Organize Advanced Placement study by subject and build a plan around your course materials.",
+    topics: ["Calculus", "Statistics", "Computer Science", "History"],
+    tone: "gold",
+  },
+  {
+    id: "ielts",
+    name: "IELTS",
+    category: "international",
+    region: "Global",
+    description: "Develop the English language skills you need for study, work, and everyday communication.",
+    topics: ["Listening", "Reading", "Writing", "Speaking"],
+    tone: "mint",
+  },
+  {
+    id: "unt",
+    name: "UNT",
+    nativeName: "ҰБТ / ЕНТ",
+    category: "regional",
+    region: "Kazakhstan",
+    description: "Prepare for Unified National Testing in Kazakhstan and organize your profile subjects alongside core study.",
+    topics: ["History of Kazakhstan", "Reading Literacy", "Mathematical Literacy", "Profile Subjects"],
+    tone: "blue",
+  },
+  {
+    id: "ort",
+    name: "ORT",
+    nativeName: "ЖРТ / ОРТ",
+    category: "regional",
+    region: "Kyrgyzstan",
+    description: "Prepare for Kyrgyzstan’s national admissions test with a plan for the main test and your subject tests.",
+    topics: ["Main Test", "Subject Tests"],
+    tone: "red",
+  },
+  {
+    id: "uzbekistan-admissions",
+    name: "Uzbekistan Admissions",
+    category: "regional",
+    region: "Uzbekistan",
+    description: "Organize practice for Uzbekistan’s university entrance tests around your target program.",
+    topics: ["Native Language", "Mathematics", "History of Uzbekistan", "Program Subjects"],
+    tone: "mint",
+  },
+  {
+    id: "ege",
+    name: "EGE",
+    nativeName: "ЕГЭ",
+    category: "regional",
+    region: "Russia",
+    description: "Create a study space for Russia’s Unified State Exam and the subjects relevant to your plans.",
+    topics: ["Russian Language", "Mathematics", "Elective Subjects"],
+    tone: "gold",
+  },
+  {
+    id: "gaokao",
+    name: "Gaokao",
+    nativeName: "高考",
+    category: "regional",
+    region: "China",
+    description: "Plan your National College Entrance Examination study around your subjects and province.",
+    topics: ["Chinese", "Mathematics", "Foreign Language", "Electives"],
+    tone: "red",
+  },
+  {
+    id: "dse",
+    name: "HKDSE",
+    nativeName: "香港中學文憑考試",
+    category: "regional",
+    region: "Hong Kong",
+    description: "Prepare for the Hong Kong Diploma of Secondary Education across core and elective subjects.",
+    topics: ["Chinese Language", "English Language", "Mathematics", "Citizenship and Social Development", "Electives"],
+    tone: "blue",
+  },
+  {
+    id: "discrete-mathematics",
+    name: "Discrete Mathematics",
+    category: "university",
+    region: "University course",
+    description: "Connect logic, sets, counting, and graphs to the problems you see in class.",
+    topics: ["Logic", "Sets", "Combinatorics", "Graphs"],
+    tone: "mint",
+  },
+  {
+    id: "introduction-to-finance",
+    name: "Introduction to Finance",
+    category: "university",
+    region: "University course",
+    description: "Work through the time value of money, the relationship between risk and return, and valuation basics.",
+    topics: ["Time Value of Money", "Risk and Return", "Valuation"],
+    tone: "gold",
+  },
+];
+
+// Original starter questions for trying the practice flow before course materials are added.
+export const sampleQuestions = [
+  {
+    id: "sat-algebra-1",
+    trackId: "sat",
+    topic: "Algebra",
+    prompt: "A bike rental costs $8 to start and $5 per hour. If the total cost is $38, how many hours was the bike rented?",
+    choices: ["5 hours", "6 hours", "7 hours", "9 hours"],
+    correctIndex: 1,
+    hint: "Subtract the fixed charge before dividing by the hourly rate.",
+    explanation: "The hourly charges total $38 − $8 = $30. At $5 per hour, $30 ÷ $5 gives 6 hours.",
+  },
+  {
+    id: "sat-data-1",
+    trackId: "sat",
+    topic: "Problem Solving and Data Analysis",
+    prompt: "A library recorded 14, 18, 18, 21, and 29 visitors in its first five opening hours. What was the mean number of visitors per hour?",
+    choices: ["18", "19", "21", "20"],
+    correctIndex: 3,
+    hint: "A repeated value counts each time it appears.",
+    explanation: "The five counts add to 100. Dividing by the five hours gives a mean of 20 visitors per hour.",
+  },
+  {
+    id: "sat-writing-1",
+    trackId: "sat",
+    topic: "Reading and Writing",
+    prompt: "Choose the transition that best completes the text. The first prototype used less power than expected. ___, its battery still ran out before the trial ended.",
+    choices: ["However", "Similarly", "For example", "Therefore"],
+    correctIndex: 0,
+    hint: "Decide whether the second sentence supports the result you would expect from the first.",
+    explanation: "The second sentence contrasts the lower power use with a shorter battery life than the trial required. “However” signals that contrast.",
+  },
+  {
+    id: "discrete-logic-1",
+    trackId: "discrete-mathematics",
+    topic: "Logic",
+    prompt: "What is the negation of the statement “Every member of the study group submitted the assignment”?",
+    choices: ["No member submitted it.", "At least one member submitted it.", "At least one member did not submit it.", "Exactly one member did not submit it."],
+    correctIndex: 2,
+    hint: "A single counterexample is enough to disprove an ‘every’ statement.",
+    explanation: "The original statement fails as soon as one member does not submit the assignment. More than one member could also have missed it.",
+  },
+  {
+    id: "discrete-counting-1",
+    trackId: "discrete-mathematics",
+    topic: "Combinatorics",
+    prompt: "In how many ways can a team of 2 be chosen from 5 students if the two students have the same role?",
+    choices: ["5", "10", "20", "25"],
+    correctIndex: 1,
+    hint: "Choosing Sam and Jo gives the same team as choosing Jo and Sam.",
+    explanation: "There are 5 × 4 = 20 ordered choices. Each team is counted twice, so there are 20 ÷ 2 = 10 teams.",
+  },
+  {
+    id: "discrete-graphs-1",
+    trackId: "discrete-mathematics",
+    topic: "Graphs",
+    prompt: "An undirected graph has 7 edges. What is the sum of the degrees of all its vertices?",
+    choices: ["7", "12", "13", "14"],
+    correctIndex: 3,
+    hint: "Each edge contributes one to the degree at each of its two ends.",
+    explanation: "Every edge contributes 2 to the total degree, so 7 edges contribute 2 × 7 = 14.",
+  },
+  {
+    id: "finance-time-value-1",
+    trackId: "introduction-to-finance",
+    topic: "Time Value of Money",
+    prompt: "A savings account earns 5% interest per year, compounded annually. How much will a $200 deposit be worth after two years?",
+    choices: ["$220.50", "$220.00", "$210.00", "$221.00"],
+    correctIndex: 0,
+    hint: "The balance from year one earns interest in year two.",
+    explanation: "After year one the balance is $200 × 1.05 = $210. After year two it is $210 × 1.05 = $220.50.",
+  },
+  {
+    id: "finance-risk-1",
+    trackId: "introduction-to-finance",
+    topic: "Risk and Return",
+    prompt: "An investment has a 50% chance of returning 12% and a 50% chance of returning −4%. What is its expected return?",
+    choices: ["8%", "−2%", "4%", "6%"],
+    correctIndex: 2,
+    hint: "Multiply each possible return by its probability, then add the results.",
+    explanation: "The expected return is 0.5 × 12% + 0.5 × (−4%) = 6% − 2% = 4%.",
+  },
+  {
+    id: "finance-valuation-1",
+    trackId: "introduction-to-finance",
+    topic: "Valuation",
+    prompt: "A project costs $100 today and pays $110 one year from now. At a 10% annual discount rate, what is its net present value?",
+    choices: ["$10", "$0", "−$10", "$100"],
+    correctIndex: 1,
+    hint: "Discount the future payment to today before subtracting the cost.",
+    explanation: "The future payment is worth $110 ÷ 1.10 = $100 today. Subtracting the $100 cost gives a net present value of $0.",
+  },
+];
+
+export function getTrack(id) {
+  return tracks.find((track) => track.id === id);
+}
+
+export function createStudyPlan(goal, sourceText = "") {
+  const topic = goal.trim().replace(/\s+/g, " ");
+  const characters = Array.from(topic);
+  const label = characters.length > 64 ? `${characters.slice(0, 63).join("").trimEnd()}…` : topic;
+  const goalTask = label
+    ? `List what you already know about “${label}”`
+    : "List what you already know and what you want to learn";
+
+  return [
+    sourceText.trim()
+      ? "Review your material and mark the concepts you want to clarify"
+      : goalTask,
+    "Explain one key idea in your own words and work through an example",
+    "Answer three practice questions and note what to review next",
+  ];
+}
