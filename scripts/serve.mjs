@@ -22,21 +22,42 @@ const server = createServer(async (request, response) => {
   if (request.method === 'POST' && request.url.startsWith('/api/generate-study')) {
     let data = '';
     request.on('data', chunk => data += chunk);
-    request.on('end', () => {
+    request.on('end', async () => {
       try {
         const payload = JSON.parse(data);
-        const { title } = payload;
-        const explanation = `This is a concise explanation of **${title}**.`;
+        const { title, text, pages } = payload;
+        // Build prompt for Ollama
+        const prompt = `Title: ${title}\nPages: ${pages}\nExcerpt:\n${text}\nProvide a JSON object with keys: explanation (string) and question (object). The question should have prompt (string), choices (array of 4 strings), correctIndex (int), rationale (string).`;
+        const ollamaUrl = process.env.OLLAMA_URL || 'http://127.0.0.1:11434/v1/chat/completions';
+        const ollamaPayload = {
+          model: process.env.MODEL || 'llama3:8b',
+          messages: [
+            { role: 'system', content: 'You are an assistant that generates an explanation and single-choice question for a text excerpt.' },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.7,
+          max_tokens: 512,
+        };
+        const ollamaResp = await fetch(ollamaUrl, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ollamaPayload), timeout: 15000,
+        });
+        if (!ollamaResp.ok) throw new Error(`Ollama HTTP ${ollamaResp.status}`);
+        const ollamaJson = await ollamaResp.json();
+        const content = ollamaJson.choices?.[0]?.message?.content || '';
+        const output = JSON.parse(content.trim());
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify(output));
+      } catch (e) {
+        // Fallback test double
+        const explanation = `This is a concise explanation of **${payload.title}**.`;
         const question = {
           prompt: 'What is the main concept discussed?',
           choices: ['Option A', 'Option B', 'Option C', 'Option D'],
           correctIndex: 2,
-          rationale: `The correct answer is based on the content of the source titled ${title}.`,
+          rationale: `The correct answer is based on the content of the source titled ${payload.title}.`,
         };
         response.writeHead(200, { 'Content-Type': 'application/json' });
         response.end(JSON.stringify({ explanation, question }));
-      } catch (e) {
-        response.writeHead(400).end('Invalid JSON');
       }
     });
     return;

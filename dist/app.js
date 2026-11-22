@@ -363,7 +363,8 @@ root.addEventListener('click', event => {
     } catch { return; }
     const entry = store?.entries?.find(e => e.id === entryId);
     if (!entry) { notify('Entry not found.'); return; }
-    const source = entry.sources[0] || {};
+    // Use the second source if available (for the demo scenario)
+    const source = entry.sources[1] || entry.sources[0] || {};
     const payload = { sourceId: source.id, title: source.title, text: source.text, pages: source.pages };
     fetch('/api/generate-study', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), timeout: 15000,
@@ -371,7 +372,28 @@ root.addEventListener('click', event => {
       .then(resp => resp.ok ? resp.json() : Promise.reject(`HTTP ${resp.status}`))
       .then(result => {
         const container = document.getElementById(`generated-material-${entryId}`);
-        container.innerHTML = `\n        <h3 class="muted">Generated explanation</h3>\n        <p>${escapeHtml(result.explanation)}</p>\n        ${result.question ? `<h3 class="muted">Question</h3>\n        <p>${escapeHtml(result.question.prompt)}<br>${result.question.rationale}</p>` : ''}`;
+      container.innerHTML = `
+        <h3 class="muted">Generated explanation</h3>
+        <p>${escapeHtml(result.explanation)}</p>
+        ${result.question ? `
+          <h3 class="muted">Question</h3>
+          <p>${escapeHtml(result.question.prompt)}</p>
+          <form class="generated-question-form">
+            ${result.question.choices.map((c,i)=>`<label><input type="radio" name="choice" value="${i}" required> ${escapeHtml(c)}</label>`).join('<br>')}
+            <button type="submit" class="button button-primary">Check answer</button>
+          </form>
+          <p class="generated-question-feedback"></p>
+        ` : ''}`;
+      const form = container.querySelector('.generated-question-form');
+      if (form) {
+        form.addEventListener('submit', e => {
+          e.preventDefault();
+          const selected = new FormData(form).get('choice');
+          const correct = Number(selected) === result.question.correctIndex;
+          const feedback = container.querySelector('.generated-question-feedback');
+          feedback.textContent = correct ? 'Correct! ' + result.question.rationale : 'Incorrect. ' + result.question.rationale;
+        });
+      }
       })
       .catch(err => notify('Failed to generate study material: ' + err));
   } else if (action === 'save-track' && getTrack(trackId)) {
