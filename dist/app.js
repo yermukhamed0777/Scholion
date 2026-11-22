@@ -1,5 +1,5 @@
 import { getTrack, sampleQuestions, tracks } from './learning.js';
-import { sourceRegistry } from './source-registry.js';
+import { getTrackSources } from './source-registry.js';
 import { handleStudyAction, handleStudySourceChange, handleStudySubmit, renderStudyPage } from './study.js';
 import { escapeHtml, icon } from './ui.js';
 
@@ -20,10 +20,6 @@ const categoryLabels = {
   regional: 'Regional exam',
   university: 'University course',
 };
-const trackSourceCounts = {};
-sourceRegistry.forEach(sr => {
-  trackSourceCounts[sr.trackId] = (trackSourceCounts[sr.trackId] || 0) + 1;
-});
 const navGroups = [
   ['Workspace', [
     ['home', 'Overview', 'layout-dashboard'],
@@ -239,10 +235,10 @@ function catalog() {
 function trackDetail(track) {
   if (!track) return missingPage('This track could not be found.');
   const hasPractice = sampleTrackIds.has(track.id);
+  const sources = getTrackSources(track.id);
   return `<div class="track-detail" data-tone="${track.tone}">
     ${pageHeading(escapeHtml(track.name), `${escapeHtml(categoryLabels[track.category])} · ${escapeHtml(track.region)}`,
-    '<a class="button button-secondary" href="#/catalog">All tracks</a>')}
-    ${trackSourceCounts[track.id] ? '<p class="track-sources"><small>Sources: ' + trackSourceCounts[track.id] + '</small></p>' : ''}
+      '<a class="button button-secondary" href="#/catalog">All tracks</a>')}
     <section class="track-detail-header panel" aria-labelledby="track-overview">
       <div class="track-card-top"><span class="track-mark">${icon(trackIcon(track), 23)}</span>${trackSaveButton(track)}</div>
       <h2 id="track-overview">Track overview</h2>
@@ -258,6 +254,11 @@ function trackDetail(track) {
       <h2 id="track-topics">Topics to organize</h2>
       <ul>${track.topics.map(topic => `<li>${escapeHtml(topic)}</li>`).join('')}</ul>
     </section>
+    ${sources.length ? `<section class="track-detail-topics panel" aria-labelledby="track-sources">
+      <h2 id="track-sources">Official resources</h2>
+      <ul>${sources.map(source => `<li><a class="text-link" href="${escapeHtml(source.url)}">${escapeHtml(source.title)}</a>
+        <span class="muted"> · ${escapeHtml(source.publisher)}</span></li>`).join('')}</ul>
+    </section>` : ''}
   </div>`;
 }
 
