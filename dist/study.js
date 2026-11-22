@@ -64,36 +64,8 @@ function workspacePage(entries, entryId, goal) {
             <small class="muted">Uses a local study plan template. GrinderAI model access is pending.</small>
           </div>
         </form>
-        <script type="text/javascript">
-          // Populate editable title and page range fields per uploaded file
-          const fileInput = document.getElementById('study-sources');
-          const metaDiv = document.getElementById('source-meta');
-          fileInput && fileInput.addEventListener('change', () => {
-            metaDiv.innerHTML = '';
-            Array.from(fileInput.files).forEach((file, idx) => {
-              const pageRegex = /^(.*[\-._])?(\d+)[\-._](\d+)\/?.*\.(txt|md|pdf)$/i;
-              const match = pageRegex.exec(file.name);
-              let pages = '';
-              if (match) {
-                pages = match[2] + '–' + match[3];
-              }
-              metaDiv.innerHTML += \`
-                <div class="source-item" style="margin:4px 0;padding:2px 0;border-bottom:1px solid var(--border);">
-                  <label style="display:block;margin-bottom:2px;">
-                    <span class="muted">Source ${idx + 1}:</span> ${escapeHtml(file.name)}
-                  </label>
-                  <label style="display:block;">
-                    <small class="muted">Title</small>
-                    <input name="source-title-${idx}" type="text" value="${escapeHtml(file.name)}" style="width:100%;" />
-                  </label>
-                  <label style="display:block;">
-                    <small class="muted">Pages</small>
-                    <input name="source-pages-${idx}" type="text" value="${pages}" style="width:100%;" />
-                  </label>
-                </div>\`;
-            });
-          });
-        </script>
+        attachSourceChangeHandler(form);
+        // script removed – handler now in module
       </section>
       <aside class="panel study-aside" aria-labelledby="recent-plan-heading">
         <h2 class="section-title" id="recent-plan-heading">Your study plans</h2>
@@ -111,6 +83,37 @@ function sourcePreview(source) {
   </details>`;
 }
 
+// Attach source change handler for dynamically added files
+function attachSourceChangeHandler(form) {
+  const fileInput = form.querySelector('input[name="sources"]');
+  const metaDiv = form.querySelector('#source-meta');
+  if (!fileInput || !metaDiv) return;
+  fileInput.addEventListener('change', () => {
+    metaDiv.innerHTML = '';
+    Array.from(fileInput.files).forEach((file, idx) => {
+      const pageRegex = /^(.*[\-._])?(\d+)[\-._](\d+)\/?.*\.(txt|md|pdf)$/i;
+      const match = pageRegex.exec(file.name);
+      let pages = '';
+      if (match) {
+        pages = match[2] + '–' + match[3];
+      }
+      metaDiv.innerHTML += `
+        <div class="source-item" style="margin:4px 0;padding:2px 0;border-bottom:1px solid var(--border);">
+          <label style="display:block;margin-bottom:2px;">
+            <span class="muted">Source ${idx + 1}:</span> ${escapeHtml(file.name)}
+          </label>
+          <label style="display:block;">
+            <small class="muted">Title</small>
+            <input name="source-title-${idx}" type="text" value="${escapeHtml(file.name)}" style="width:100%;" />
+          </label>
+          <label style="display:block;">
+            <small class="muted">Pages</small>
+            <input name="source-pages-${idx}" type="text" value="${pages}" style="width:100%;" />
+          </label>
+        </div>`;
+    });
+  });
+}
 function studyPlanPage(entry) {
   const completed = entry.tasks.filter((task) => task.done).length;
   const createdDate = dateFormat.format(new Date(entry.createdAt));
