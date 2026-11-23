@@ -10,7 +10,7 @@ The citation flow is implemented and tested. GrinderAI can request study materia
 | --- | --- |
 | M0 | Text uploads preserve source titles, optional page ranges, and citations across reload. Exam track pages link to official resources. |
 | M1 | GrinderAI requests structured output from the local provider. The study plan saves the latest explanation and question, shows grading feedback, and links both results to the selected source. |
-| Automated verification | `npm run check` and all nine `npm test` checks passed. A failing provider returns a JSON error and the same process still serves the homepage. |
+| Automated verification | `npm run check` and all 28 `npm test` checks passed. A failing provider returns a JSON error and the same process still serves the homepage. Coverage, glow, server-config, and catalog integrity regressions were added after the M1 push. |
 | Browser verification | Repeat the two-file import and reload once in a regular browser against the pushed version. |
 | Private materials | `Materials/` is ignored and Git tracks no files under it. The scratch harness, excerpts, and draft GrinderAI notes remained local. |
 | Live provider | The most recent attempt found Ollama stopped and returned HTTP 502. The live model result in the app is pending. |

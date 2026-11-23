@@ -10,7 +10,9 @@ Use Node.js 22 or later to run the app. The preview server and browser app have 
 npm start
 ```
 
-Open [ALLaroundPREP in your browser](http://127.0.0.1:4173). Run `npm run check` to check the JavaScript syntax. The static files in `dist/` support the catalog and local study tools. Use the Node server for GrinderAI generation.
+Open [ALLaroundPREP in your browser](http://127.0.0.1:4173). `npm run dev` is an alias for `npm start`. Run `npm run check` to check the JavaScript syntax. The static files in `dist/` support the catalog and local study tools. Use the Node server for GrinderAI generation.
+
+For hosted runs that supply a `PORT`, the server binds all interfaces so a reverse proxy can reach it; without `PORT` it stays on `127.0.0.1:4173`. An occupied port produces a clear message instead of a crash.
 
 ## Generate study material with Ollama
 
@@ -33,7 +35,7 @@ Tests use synthetic passages and controlled providers. They check source selecti
 
 ## What the foundation supports
 
-- Browse and bookmark SAT, ACT, AP, IELTS, and regional exam tracks, along with university course examples in Discrete Mathematics and Introduction to Finance. Exam details link to official resources.
+- Browse and bookmark SAT, ACT, AP, IELTS, and regional exam tracks, along with university course examples in Discrete Mathematics and Introduction to Finance. Each track shows how many original sample questions and official links are currently available. Exam details link to official resources.
 - Create a study plan from a goal, attach `.txt` or `.md` files, and give each attachment a source title and optional page range. Open its citation in the plan or Materials to read the excerpt. Plans use local templates and are saved alongside notes, bookmarks, and progress in the browser for that site address.
 - Try original sample questions for SAT, Discrete Mathematics, and Introduction to Finance. Each question includes an explanation after grading.
 
@@ -41,10 +43,11 @@ The regional catalog includes Kazakhstan’s UNT, Kyrgyzstan’s ORT, Russia’s
 
 ## Project structure
 
-- `dist/index.html` and `dist/styles.css` define the interface and responsive layout.
+- `dist/index.html`, `dist/styles.css`, and `dist/study.css` define the interface and responsive layout.
 - `dist/app.js`, `dist/ui.js`, and `dist/study.js` connect the interface, navigation, study flows, and browser storage.
-- `dist/learning.js` holds the track catalog, sample questions, and study plan templates.
-- `scripts/serve.mjs` serves the app for local development.
+- `dist/learning.js` holds the track catalog, sample questions, and study plan templates. `dist/source-registry.js` lists official, link-only resources.
+- `dist/coverage.js` derives the per-track coverage shown in the catalog; `dist/glow.js` adds the optional pointer-follow highlight.
+- `scripts/serve.mjs` serves the app and the generation endpoint; `scripts/server-config.js` resolves its host and port.
 
 ## Planned expansion
 
