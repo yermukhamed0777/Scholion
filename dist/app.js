@@ -1,5 +1,6 @@
 import { getTrack, tracks } from './learning.js';
 import { coverageLabel, trackCoverage } from './coverage.js';
+import { bindPointerGlow } from './glow.js';
 import { getTrackSources } from './source-registry.js';
 import { handleStudyAction, handleStudySourceChange, handleStudySubmit, renderStudyPage } from './study.js';
 import { escapeHtml, icon } from './ui.js';
@@ -114,7 +115,7 @@ function trackSaveButton(track) {
 }
 
 function trackCard(track) {
-  return `<article class="track-card" data-tone="${track.tone}">
+  return `<article class="track-card" data-tone="${track.tone}" data-glow>
     <div class="track-card-top">
       <span class="track-mark">${icon(trackIcon(track), 23)}</span>
       ${trackSaveButton(track)}
@@ -170,7 +171,7 @@ function pageHeading(title, subtitle, action = '', extraClass = '') {
 }
 
 function quickLink(path, symbol, title, text, tone) {
-  return `<a class="quick-link" href="${path}">
+  return `<a class="quick-link" href="${path}" data-glow>
     <span class="quick-icon" data-tone="${tone}">${icon(symbol, 19)}</span>
     <span class="quick-copy"><strong>${title}</strong><small>${text}</small></span>
   </a>`;
@@ -495,3 +496,4 @@ window.addEventListener('keydown', event => {
 });
 
 render();
+bindPointerGlow(root);

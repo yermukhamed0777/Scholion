@@ -703,3 +703,23 @@ select {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* Pointer-follow glow: a subtle highlight that tracks the cursor on
+   interactive cards. It is purely decorative and stays off unless the
+   device has a fine pointer and the learner has not asked for less motion. */
+[data-glow] { position: relative; isolation: isolate; }
+[data-glow]::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(180px circle at var(--glow-x, 50%) var(--glow-y, 50%), rgb(var(--track-color, 107 168 216) / .14), transparent 70%);
+  transition: opacity 180ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  [data-glow][data-glowing="true"]::before { opacity: 1; }
+}
