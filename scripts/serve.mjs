@@ -3,10 +3,10 @@ import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveServerConfig } from './server-config.js';
 
 const siteRoot = fileURLToPath(new URL('../dist/', import.meta.url));
-const host = '127.0.0.1';
-const port = Number(process.argv[2] ?? 4173);
+const { host, port } = resolveServerConfig(process.env, process.argv.slice(2));
 const studyRequestLimit = 2 * 1024 * 1024;
 const providerTimeout = 90_000;
 const studyMaterialSchema = {
@@ -34,10 +34,6 @@ const contentTypes = {
   '.jpg': 'image/jpeg',
   '.js': 'text/javascript; charset=utf-8',
 };
-
-if (!Number.isInteger(port) || port < 0 || port > 65535) {
-  throw new RangeError('Use a port between 0 and 65535.');
-}
 
 function sendJson(response, status, body) {
   response.writeHead(status, {
@@ -211,6 +207,15 @@ const server = createServer(async (request, response) => {
   }
 });
 
+server.on('error', error => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${port} is already in use. Stop the other process or choose another port.`);
+    process.exitCode = 1;
+  } else {
+    throw error;
+  }
+});
+
 server.listen(port, host, () => {
-  console.log('ALLaroundPREP is available at http://' + host + ':' + server.address().port);
+  console.log('ALLaroundPREP is available at http://' + host + ':' + server.address().port + '/');
 });

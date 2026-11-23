@@ -6,7 +6,8 @@
   "description": "A learning workspace for exams, university courses, and workplace learning.",
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "check": "node --check dist/app.js && node --check dist/ui.js && node --check dist/learning.js && node --check dist/study.js && node --check dist/source-registry.js && node --check scripts/serve.mjs",
+    "dev": "node scripts/serve.mjs",
+    "check": "node --check dist/app.js && node --check dist/ui.js && node --check dist/learning.js && node --check dist/study.js && node --check dist/coverage.js && node --check dist/glow.js && node --check dist/source-registry.js && node --check scripts/serve.mjs && node --check scripts/server-config.js",
     "test": "node --test tests/*.test.js"
   },
   "engines": {
