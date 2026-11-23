@@ -1,34 +1,19 @@
-# Hermes Progress
+# ALLaroundPREP progress
 
-- ## Milestone 1: Baseline Check & Source Registry
-- ✅ Verified repository checkout (main → origin/main).
-- ✅ npm run check passed – syntax checks on all dist modules and serve script.
-- ✅ Created `dist/source-registry.js` with machine‑readable entries for all tracks.
-- 🚧 No blockers. Next step: integrate source registry with the UI and add import pipeline.
-## Milestone 2: Generate study material from source
-- ✅ Added a generate button on each study plan that posts to `/api/generate-study`.
-- ✅ Server endpoint now responds with a static explanation and question.
-- ✅ Frontend displays the explanation and question inside the plan preview.
-- ✅ Demonstrated that a plan can request generation for the first attached source.
-## Milestone 3: Materials import and citation workflow
- - ✅ Updated `.gitignore` to exclude `Materials/` and all PDF files.
- - ✅ Created local folder `Materials/Discrete Mathematics/` and added excerpt file `Chapter1-excerpt.txt` (pages 25‑28 of *Discrete Mathematics 1*).
- - ...
+## M0 Upload and citations
 
-## Milestone 2: Materials import and citation workflow
-- ✅ Updated `.gitignore` to exclude `Materials/` and all PDF files.
-- ✅ Created local folder `Materials/Discrete Mathematics/` and added excerpt file `Chapter1-excerpt.txt` (pages 25‑28 of *Discrete Mathematics 1*).
-- ✅ Run `git status --porcelain`; no tracked changes – Materials folder is ignored.
-- ✅ Import form (UI) accepts `.txt` files; `Chapter1-excerpt.txt` is now uploaded via the Create‑study‑plan form.
-- ✅ Generated study plan via `createStudyPlan('Discrete Mathematics', \u003ctext\u003e)` produced the expected three tasks.
-- ✅ No OCR required for this plain‑text file.
-- ✅ Citation link structure now includes clickable page range; two sources with differing ranges open the correct excerpt upon clicking.
-- 🚧 **Unknown:** Automatic generation of GrinderAI explanations for the excerpt and linking of that text to quiz questions has not yet been triggered – UI would need a step to select the passage and invoke the explanation generator.
+The study plan accepts text and Markdown attachments and saves each source title and optional page range. The import regression verifies distinct citations, blank ranges, and reopening the right excerpt from saved state.
 
-**Next step:** Trigger GrinderAI to create an explanation for the excerpt and use that passage as the basis for a synthetic quiz question.
+## M1 GrinderAI from one selected source
 
-## Milestone 3: Citation link verification
-- ✅ After reloading the page, clicking on a source title (e.g., `Chapter1.txt (25 – 28)`) opens the corresponding `\u003cdetails\u003e` element containing the full excerpt.
-- ✅ The same behavior works for a second source with a different range (`Chapter2.txt (30 – 33)`).
-- ✅ No errors reported in the browser console. The modules load without syntax errors and both citations open correctly.
+The app sends the selected excerpt to local Ollama and validates the returned explanation and four-choice question. A learner can open a source citation, check an answer, and revisit the latest generated question and feedback after reload. Progress includes generated quiz attempts. The endpoint returns a structured error when the provider fails and the app continues serving the workspace.
 
+### Verification on November 23, 2026
+
+- `npm run check` passed.
+- `npm test` passed all nine checks. They exercise both Ollama response formats with controlled providers, the outage path, normal import and source selection, grading, and reopening saved citations.
+- A live attempt found Ollama stopped at the default loopback address. The app returned HTTP 502. The model result and regular-browser check are pending.
+
+### Next check
+
+With local Ollama running, generate from a synthetic logic excerpt through the actual app endpoint. Verify the returned model, source ID, and keyed answer. Then repeat the import, generation, grading, citation, and reload flow in a regular browser. Continue task editing and PDF import from the [project roadmap](PROJECT_ROADMAP.md).
