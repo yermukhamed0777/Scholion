@@ -61,7 +61,11 @@ test('the study API reports provider failures and stays running', { timeout: 30_
     }
     const content = mode === 'invalid-output' ? 'not JSON' : JSON.stringify(generatedStudy);
     response.writeHead(200, { 'Content-Type': 'application/json' });
-    response.end(JSON.stringify({ choices: [{ message: { content } }] }));
+    const message = { content };
+    const model = 'gpt-oss:20b';
+    response.end(JSON.stringify(request.url === '/api/chat'
+      ? { model, message }
+      : { model, choices: [{ message }] }));
   });
   t.after(() => {
     provider.close();
@@ -106,6 +110,26 @@ test('the study API reports provider failures and stays running', { timeout: 30_
     mode = 'valid';
     const response = await post();
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), generatedStudy);
+    assert.deepEqual(await response.json(), {
+      ...generatedStudy,
+      sourceId: source.sourceId,
+      model: 'gpt-oss:20b',
+    });
+  });
+
+  await t.test('the native Ollama response carries the selected source and model', async () => {
+    const nativeOrigin = await startApp(t, `http://127.0.0.1:${provider.address().port}/api/chat`);
+    const response = await fetch(`${nativeOrigin}/api/generate-study`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(source),
+      signal: AbortSignal.timeout(5_000),
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      ...generatedStudy,
+      sourceId: source.sourceId,
+      model: 'gpt-oss:20b',
+    });
   });
 });
