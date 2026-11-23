@@ -1,4 +1,5 @@
-import { getTrack, sampleQuestions, tracks } from './learning.js';
+import { getTrack, tracks } from './learning.js';
+import { coverageLabel, trackCoverage } from './coverage.js';
 import { getTrackSources } from './source-registry.js';
 import { handleStudyAction, handleStudySourceChange, handleStudySubmit, renderStudyPage } from './study.js';
 import { escapeHtml, icon } from './ui.js';
@@ -7,7 +8,6 @@ const root = document.querySelector('#app');
 const announcement = document.querySelector('#announcement');
 const storageKey = 'allaroundprep:v1';
 const featuredIds = ['sat', 'ielts', 'unt'];
-const sampleTrackIds = new Set(sampleQuestions.map(question => question.trackId));
 const categories = [
   ['all', 'All tracks'],
   ['international', 'International'],
@@ -125,7 +125,7 @@ function trackCard(track) {
       <p>${escapeHtml(track.description)}</p>
     </div>
     <div class="track-card-foot">
-      <span class="track-status">${sampleTrackIds.has(track.id) ? 'Sample practice' : 'Plan available'}</span>
+      <span class="track-status">${coverageLabel(track.id)}</span>
       <a class="track-open" href="#/catalog/${track.id}" aria-label="View ${escapeHtml(track.name)} track">View track</a>
     </div>
   </article>`;
@@ -235,7 +235,7 @@ function catalog() {
 
 function trackDetail(track) {
   if (!track) return missingPage('This track could not be found.');
-  const hasPractice = sampleTrackIds.has(track.id);
+  const hasPractice = trackCoverage(track.id).questions > 0;
   const sources = getTrackSources(track.id);
   return `<div class="track-detail" data-tone="${track.tone}">
     ${pageHeading(escapeHtml(track.name), `${escapeHtml(categoryLabels[track.category])} · ${escapeHtml(track.region)}`,
