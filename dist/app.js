@@ -38,6 +38,7 @@ const filters = {
 };
 let state = readState();
 let toastTimer;
+const generatingPlans = new Set();
 
 function readState(fallback = { savedTrackIds: [], entries: [], attempts: [] }) {
   try {
@@ -313,6 +314,7 @@ function render({ focus = false } = {}) {
       <main class="main-content" id="main-content" tabindex="-1">${pageContent(route)}</main>
     </div>
   </div>`;
+  syncGenerationForm();
   if (focus) {
     window.scrollTo(0, 0);
     root.querySelector('#main-content').focus({ preventScroll: true });
@@ -331,6 +333,79 @@ function toggleMenu(button, open) {
 function refreshTrackResults(page) {
   const results = document.querySelector('#track-results');
   if (results) results.innerHTML = trackGrid(page);
+}
+
+function syncGenerationForm() {
+  const form = root.querySelector('form[data-study-form="generate"]');
+  if (!form) return;
+  const generating = generatingPlans.has(form.dataset.entryId);
+  form.setAttribute('aria-busy', String(generating));
+  form.querySelector('button[type="submit"]').disabled = generating;
+  form.querySelector('select[name="sourceId"]').disabled = generating;
+  form.querySelector('[data-generation-status]').hidden = !generating;
+}
+
+function isGeneratedStudy(value, sourceId) {
+  const question = value?.question;
+  return value?.sourceId === sourceId && typeof value.model === 'string' && typeof value.explanation === 'string' &&
+    typeof question?.prompt === 'string' && typeof question.rationale === 'string' &&
+    Array.isArray(question.choices) && question.choices.length === 4 && question.choices.every(choice => typeof choice === 'string') &&
+    Number.isInteger(question.correctIndex) && question.correctIndex >= 0 && question.correctIndex < question.choices.length;
+}
+
+async function generateStudy(form) {
+  const entryId = form.dataset.entryId;
+  const entry = readState(state).entries.find(item => item.id === entryId);
+  const sourceId = form.elements.namedItem('sourceId').value;
+  const source = entry?.sources.find(item => item.id === sourceId);
+  if (!source || generatingPlans.has(entryId)) return;
+
+  generatingPlans.add(entryId);
+  syncGenerationForm();
+  let saved = false;
+  try {
+    const response = await fetch('/api/generate-study', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceId, title: source.title || source.name, pages: source.pages, text: source.text }),
+      signal: AbortSignal.timeout(95_000),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      notify(typeof result?.error?.message === 'string' ? result.error.message : 'GrinderAI could not generate study material.');
+      return;
+    }
+    if (!isGeneratedStudy(result, sourceId)) {
+      notify('GrinderAI returned an invalid result. Try again.');
+      return;
+    }
+    const generatedStudy = {
+      id: crypto.randomUUID(),
+      sourceId,
+      model: result.model,
+      explanation: result.explanation,
+      question: result.question,
+    };
+    saved = commit(current => ({
+      ...current,
+      entries: current.entries.map(item => item.id === entryId && item.sources.some(material => material.id === sourceId)
+        ? { ...item, generatedStudy }
+        : item),
+    }));
+  } catch (error) {
+    notify(error.name === 'TimeoutError'
+      ? 'GrinderAI took too long to respond. Try again.'
+      : 'GrinderAI could not respond. Check the local app server and try again.');
+  } finally {
+    generatingPlans.delete(entryId);
+    const route = currentRoute();
+    if (saved && route.page === 'workspace' && route.entryId === entryId) {
+      render();
+      root.querySelector('#generated-material-heading')?.focus();
+    } else {
+      syncGenerationForm();
+    }
+  }
 }
 
 root.addEventListener('click', event => {
@@ -353,49 +428,6 @@ root.addEventListener('click', event => {
       button.setAttribute('aria-pressed', String(button === target));
     });
     refreshTrackResults(page);
-  } else if (action === 'generate-study') {
-    // Generate study material for the selected source via API
-    const entryId = target.dataset.studyId;
-    const dataKey = 'allaroundprep:v1';
-    let store;
-    try {
-      store = JSON.parse(localStorage.getItem(dataKey));
-    } catch { return; }
-    const entry = store?.entries?.find(e => e.id === entryId);
-    if (!entry) { notify('Entry not found.'); return; }
-    // Use the second source if available (for the demo scenario)
-    const source = entry.sources[1] || entry.sources[0] || {};
-    const payload = { sourceId: source.id, title: source.title, text: source.text, pages: source.pages };
-    fetch('/api/generate-study', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), timeout: 15000,
-    })
-      .then(resp => resp.ok ? resp.json() : Promise.reject(`HTTP ${resp.status}`))
-      .then(result => {
-        const container = document.getElementById(`generated-material-${entryId}`);
-      container.innerHTML = `
-        <h3 class="muted">Generated explanation</h3>
-        <p>${escapeHtml(result.explanation)}</p>
-        ${result.question ? `
-          <h3 class="muted">Question</h3>
-          <p>${escapeHtml(result.question.prompt)}</p>
-          <form class="generated-question-form">
-            ${result.question.choices.map((c,i)=>`<label><input type="radio" name="choice" value="${i}" required> ${escapeHtml(c)}</label>`).join('<br>')}
-            <button type="submit" class="button button-primary">Check answer</button>
-          </form>
-          <p class="generated-question-feedback"></p>
-        ` : ''}`;
-      const form = container.querySelector('.generated-question-form');
-      if (form) {
-        form.addEventListener('submit', e => {
-          e.preventDefault();
-          const selected = new FormData(form).get('choice');
-          const correct = Number(selected) === result.question.correctIndex;
-          const feedback = container.querySelector('.generated-question-feedback');
-          feedback.textContent = correct ? 'Correct! ' + result.question.rationale : 'Incorrect. ' + result.question.rationale;
-        });
-      }
-      })
-      .catch(err => notify('Failed to generate study material: ' + err));
   } else if (action === 'save-track' && getTrack(trackId)) {
     if (!commit(current => ({
       ...current,
@@ -425,6 +457,10 @@ root.addEventListener('input', event => {
 root.addEventListener('submit', event => {
   if (!event.target.matches('form[data-study-form]')) return;
   event.preventDefault();
+  if (event.target.dataset.studyForm === 'generate') {
+    generateStudy(event.target);
+    return;
+  }
   handleStudySubmit(event.target, context()).catch(() => {
     notify('This action could not be completed. Please try again.');
   });

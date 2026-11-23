@@ -51,6 +51,7 @@
 }
 
 .study-field > input,
+.study-field > select,
 .study-field > textarea {
   display: block;
   width: 100%;
@@ -63,6 +64,16 @@
   margin-top: 0.4rem;
   font-size: 0.85rem;
   font-weight: 400;
+}
+
+.study-field > select {
+  min-height: 2.75rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
 }
 
 .study-field textarea {
@@ -271,6 +282,41 @@
   overflow-wrap: anywhere;
   max-height: 15rem;
   overflow: auto;
+}
+
+.generated-material {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.generated-material > h3 {
+  margin: 0 0 0.45rem;
+}
+
+.generated-material > p {
+  margin: 0 0 0.5rem;
+}
+
+.study-citation-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.25rem 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.study-citation-link > svg {
+  flex-shrink: 0;
+}
+
+.generated-question-feedback > .study-citation-link {
+  margin-top: 0.35rem;
 }
 
 .study-source {
@@ -495,6 +541,11 @@
 
 .study-progress-list > li:last-child {
   padding-bottom: 0;
+}
+
+.study-generated-progress {
+  margin: 0.45rem 0 0;
+  font-size: 0.85rem;
 }
 
 @media (max-width: 65rem) {

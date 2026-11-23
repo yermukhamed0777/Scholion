@@ -63,7 +63,7 @@ function workspacePage(entries, entryId, goal) {
           <p class="study-error" id="study-form-error" role="alert" hidden></p>
           <div class="study-form-footer">
             <button class="button button-primary" type="submit">${icon('sparkles', 18)} Create plan</button>
-            <small class="muted">Uses a local study plan template. GrinderAI model access is pending.</small>
+            <small class="muted">Attach a source to generate an explanation and question with GrinderAI.</small>
           </div>
         </form>
       </section>
@@ -102,6 +102,45 @@ export function handleStudySourceChange(input) {
     </fieldset>`).join('');
 }
 
+function sourceCitation(source) {
+  if (!source) return '';
+  const label = source.pages ? `${source.title || source.name}, pp. ${source.pages}` : source.title || source.name;
+  return `<button class="study-text-link study-citation-link" type="button"
+    data-action="open-study-source" data-source-id="${escapeHtml(source.id)}">${icon('file-text', 16)} <span>${escapeHtml(label)}</span></button>`;
+}
+
+function generatedMaterial(entry) {
+  const result = entry.generatedStudy;
+  if (!result) return '';
+  const { answer, question } = result;
+  const citation = sourceCitation(entry.sources.find(({ id }) => id === result.sourceId));
+  return `<section class="generated-material" aria-labelledby="generated-material-heading">
+    <h3 id="generated-material-heading" tabindex="-1">Generated explanation</h3>
+    <p>${escapeHtml(result.explanation)}</p>
+    ${citation}
+    <form class="study-form" data-study-form="generated-quiz"
+      data-entry-id="${escapeHtml(entry.id)}" data-generation-id="${escapeHtml(result.id)}">
+      <fieldset class="study-choices" ${answer ? 'disabled' : ''}>
+        <legend>${escapeHtml(question.prompt)}</legend>
+        ${question.choices.map((choice, index) => {
+          const correct = answer && index === question.correctIndex;
+          const selected = answer?.choiceIndex === index;
+          return `<label class="study-choice ${correct ? 'study-choice-correct' : selected ? 'study-choice-review' : ''}">
+            <input type="radio" name="choice" value="${index}" required ${selected ? 'checked' : ''}>
+            <span class="study-choice-text">${escapeHtml(choice)}</span>
+            ${correct ? '<small>Correct answer</small>' : selected ? '<small>Your answer</small>' : ''}
+          </label>`;
+        }).join('')}
+      </fieldset>
+      ${answer ? `<div class="generated-question-feedback study-feedback ${answer.correct ? 'study-feedback-correct' : 'study-feedback-review'}" tabindex="-1">
+        <strong>${answer.correct ? 'Correct' : 'Incorrect'}</strong>
+        <p>${escapeHtml(question.rationale)}</p>
+        ${citation}
+      </div>` : '<div class="study-form-footer"><button class="button button-primary" type="submit">Check answer</button></div>'}
+    </form>
+  </section>`;
+}
+
 function studyPlanPage(entry) {
   const completed = entry.tasks.filter((task) => task.done).length;
   const createdDate = dateFormat.format(new Date(entry.createdAt));
@@ -127,8 +166,17 @@ function studyPlanPage(entry) {
         ${entry.sources.map(sourcePreview).join('')}
         ${entry.notes || entry.sources.length ? '' : '<p class="muted">This plan started with a topic.</p>'}
         <a class="button button-secondary" href="#/materials">All materials</a>
-        ${entry.sources.length ? `<button class="button button-primary generate-study" data-study-id="${escapeHtml(entry.id)}" data-action="generate-study">Generate study from selected source</button>` : ''}
-        <div class="generated-material" id="generated-material-${entry.id}"></div>
+        ${entry.sources.length ? `<form class="study-form" data-study-form="generate" data-entry-id="${escapeHtml(entry.id)}">
+          <label class="study-field">Source for GrinderAI
+            <select name="sourceId" required>${entry.sources.map(source => `<option value="${escapeHtml(source.id)}"
+              ${source.id === entry.generatedStudy?.sourceId ? 'selected' : ''}>${escapeHtml(source.title || source.name)}${source.pages ? ` (${escapeHtml(source.pages)})` : ''}</option>`).join('')}</select>
+          </label>
+          <div class="study-form-footer">
+            <button class="button button-primary" type="submit">${icon('sparkles', 18)} Generate study material</button>
+          </div>
+          <p class="muted" role="status" data-generation-status hidden>Generating study material…</p>
+        </form>` : ''}
+        ${generatedMaterial(entry)}
       </aside>
     </div>`;
 }
@@ -263,9 +311,12 @@ function progressPage({ attempts, entries, savedTrackIds }) {
         <h2 class="section-title" id="goal-progress-heading">Study plans</h2>
         ${entries.length ? `<ul class="study-progress-list">${entries.map((entry) => {
           const done = entry.tasks.filter((task) => task.done).length;
+          const generatedAttempts = attempts.filter(({ entryId, generationId }) => entryId === entry.id && generationId);
+          const generatedCorrect = generatedAttempts.filter(({ correct }) => correct).length;
           return `<li>
             <div class="study-panel-header"><a class="study-text-link" href="${entryUrl(entry.id)}">${escapeHtml(entry.title)}</a><span class="muted">${done}/${entry.tasks.length}</span></div>
             ${progressBar(done, entry.tasks.length, `${escapeHtml(entry.title)} task completion`)}
+            ${generatedAttempts.length ? `<p class="muted study-generated-progress">${generatedCorrect} of ${generatedAttempts.length} generated questions correct</p>` : ''}
           </li>`;
         }).join('')}</ul>` : '<p class="muted">Create a plan to start tracking study tasks.</p><a class="button button-secondary" href="#/workspace">Create a study plan</a>'}
       </section>
@@ -284,6 +335,14 @@ export function renderStudyPage(route, state) {
 
 export function handleStudyAction(action, target, { commit, render }) {
   switch (action) {
+    case 'open-study-source': {
+      const source = document.getElementById(`source-${target.dataset.sourceId}`);
+      if (source) {
+        source.open = true;
+        source.querySelector('summary')?.focus();
+      }
+      return true;
+    }
     case 'toggle-study-task': {
       const { entryId, taskId } = target.dataset;
       const saved = commit((state) => ({
@@ -415,10 +474,43 @@ function checkPracticeAnswer(form, { route, commit, render }) {
   document.getElementById('practice-feedback')?.focus();
 }
 
+function checkGeneratedAnswer(form, { commit, render }) {
+  const { entryId, generationId } = form.dataset;
+  const choice = new FormData(form).get('choice');
+  if (choice === null) return;
+  const choiceIndex = Number(choice);
+  let graded = false;
+  const saved = commit((state) => {
+    const entry = state.entries.find(({ id }) => id === entryId);
+    const result = entry?.generatedStudy;
+    if (!result || result.id !== generationId || result.answer || !Number.isInteger(choiceIndex) ||
+        choiceIndex < 0 || choiceIndex >= result.question.choices.length) return state;
+
+    const answer = { choiceIndex, correct: choiceIndex === result.question.correctIndex };
+    graded = true;
+    return {
+      ...state,
+      entries: state.entries.map((item) => item === entry ? { ...entry, generatedStudy: { ...result, answer } } : item),
+      attempts: [...state.attempts, {
+        ...answer,
+        questionId: generationId,
+        entryId,
+        generationId,
+        createdAt: new Date().toISOString(),
+      }],
+    };
+  });
+  if (graded && saved !== false) {
+    render();
+    document.querySelector('.generated-question-feedback')?.focus();
+  }
+}
+
 export async function handleStudySubmit(form, context) {
   switch (form.dataset.studyForm) {
     case 'workspace': await addStudyPlan(form, context); return true;
     case 'practice': checkPracticeAnswer(form, context); return true;
+    case 'generated-quiz': checkGeneratedAnswer(form, context); return true;
     default: return false;
   }
 }
