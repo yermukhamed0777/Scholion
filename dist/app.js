@@ -7,7 +7,10 @@ import { escapeHtml, icon } from './ui.js';
 
 const root = document.querySelector('#app');
 const announcement = document.querySelector('#announcement');
-const storageKey = 'allaroundprep:v1';
+const storageKey = 'scholion:v1';
+// Read-only migration path for plans saved before the project rename. The old
+// key stays in this one place so existing learners do not lose their work.
+const legacyStorageKey = 'allaroundprep:v1';
 const featuredIds = ['sat', 'ielts', 'unt'];
 const categories = [
   ['all', 'All tracks'],
@@ -41,14 +44,68 @@ let state = readState();
 let toastTimer;
 const generatingPlans = new Set();
 
+// Stable feature state: the atlas remembers the selected format, the sandbox
+// runs on labelled offline samples, and focus mode is stored separately from
+// learner plans so changing the atmosphere never touches study data.
+const focusKey = 'scholion:mode';
+const atlasIds = ['sat', 'unt', 'ort', 'ege', 'gaokao', 'dse', 'discrete-mathematics'];
+let atlasId = atlasIds[0];
+let sandboxId = 'logic';
+let focusMode = readFocusMode();
+let focusStartedAt;
+let focusTimer;
+let commandMatches = [];
+let commandIndex = 0;
+
+const sandboxSamples = {
+  logic: {
+    label: 'Propositional logic',
+    excerpt: 'A conjunction P ∧ Q is true only when both P and Q are true. If either statement is false, the conjunction is false.',
+    explanation: 'Read the two claims as a pair: the excerpt grants truth to the whole statement only in the case where both parts hold.',
+    prompt: 'When is P ∧ Q false?',
+    choices: ['Only when P is false', 'Only when Q is false', 'When at least one of P or Q is false', 'When both are false'],
+    correctIndex: 2,
+    rationale: '“Either statement is false” is exactly the negation of “both are true”.',
+  },
+  sat: {
+    label: 'SAT reading',
+    excerpt: 'The trial measured energy use before the battery was replaced. The earlier reading therefore describes the original battery, not the new one.',
+    explanation: 'The time marker “before” fixes which battery each measurement belongs to; the conclusion must not swap them.',
+    prompt: 'What does the earlier energy reading describe?',
+    choices: ['The replacement battery', 'The original battery', 'Both batteries', 'Neither battery'],
+    correctIndex: 1,
+    rationale: 'The excerpt ties the earlier reading to the battery used at that time.',
+  },
+  onboarding: {
+    label: 'Corporate onboarding',
+    excerpt: 'A new employee may request equipment after the account is approved. Approval is required, but it is not sufficient on its own because the stock check must also pass.',
+    explanation: 'Two conditions are necessary here; satisfying one of them does not complete the request.',
+    prompt: 'Is account approval enough to receive equipment?',
+    choices: ['Yes, always', 'Yes, if the employee asks', 'No, the stock check must also pass', 'No, approval is never needed'],
+    correctIndex: 2,
+    rationale: 'The excerpt says approval is required but the stock check must also pass.',
+  },
+};
+
 function readState(fallback = { savedTrackIds: [], entries: [], attempts: [] }) {
-  try {
-    const stored = JSON.parse(localStorage.getItem(storageKey));
-    if (stored && Array.isArray(stored.savedTrackIds) && Array.isArray(stored.entries) && Array.isArray(stored.attempts)) {
-      return stored;
+  const keys = [storageKey, legacyStorageKey];
+  for (const key of keys) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(key));
+      if (stored && Array.isArray(stored.savedTrackIds) && Array.isArray(stored.entries) && Array.isArray(stored.attempts)) {
+        if (key !== storageKey) {
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(stored));
+            localStorage.removeItem(key);
+          } catch {
+            // Keep the old copy readable if the browser cannot write the new key.
+          }
+        }
+        return stored;
+      }
+    } catch {
+      // Try the next key; a corrupt record should not block the workspace.
     }
-  } catch {
-    return fallback;
   }
   return fallback;
 }
@@ -73,6 +130,42 @@ function notify(message) {
     announcement.hidden = true;
     announcement.textContent = '';
   }, 4200);
+}
+
+function readFocusMode() {
+  try {
+    return localStorage.getItem(focusKey) === 'sprint';
+  } catch {
+    return false;
+  }
+}
+
+function applyFocusMode() {
+  document.body.dataset.mode = focusMode ? 'sprint' : 'desk';
+  const toggle = document.querySelector('[data-action="toggle-focus"]');
+  if (toggle) {
+    toggle.setAttribute('aria-pressed', String(focusMode));
+    const label = toggle.querySelector('[data-focus-label]');
+    if (label) label.textContent = focusMode ? 'Sprint' : 'Desk';
+  }
+  const clock = document.querySelector('[data-focus-clock]');
+  if (!clock) return;
+  if (!focusMode) {
+    clearInterval(focusTimer);
+    focusTimer = undefined;
+    clock.hidden = true;
+    clock.textContent = '00:00';
+    return;
+  }
+  if (focusTimer) return;
+  clock.hidden = false;
+  focusStartedAt = Date.now();
+  const tick = () => {
+    const seconds = Math.floor((Date.now() - focusStartedAt) / 1000);
+    clock.textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  };
+  tick();
+  focusTimer = setInterval(tick, 1000);
 }
 
 function currentRoute() {
@@ -177,6 +270,68 @@ function quickLink(path, symbol, title, text, tone) {
   </a>`;
 }
 
+function atlasPreview(track) {
+  if (!track) return '';
+  return `<div>
+    <span class="atlas-meta">${escapeHtml(track.region)} · ${escapeHtml(categoryLabels[track.category])}</span>
+    <h3>${escapeHtml(track.name)}${track.nativeName ? ` · ${escapeHtml(track.nativeName)}` : ''}</h3>
+    <p>${escapeHtml(track.description)}</p>
+  </div>
+  <a class="button button-secondary" href="#/catalog/${encodeURIComponent(track.id)}">Open track →</a>`;
+}
+
+function atlasSection() {
+  return `<section class="atlas" aria-labelledby="atlas-heading">
+    <div class="atlas-head">
+      <h2 id="atlas-heading">Exam &amp; course atlas</h2>
+      <span class="atlas-meta">One workspace · ${atlasIds.length} formats in view</span>
+    </div>
+    <div class="atlas-strip" role="group" aria-label="Preview an exam or course format">
+      ${atlasIds.map(id => {
+        const track = getTrack(id);
+        return `<button type="button" class="atlas-option" data-action="atlas-select" data-track-id="${id}"
+          aria-pressed="${id === atlasId}">${escapeHtml(track?.name || id)}</button>`;
+      }).join('')}
+    </div>
+    <div class="atlas-preview" id="atlas-preview">${atlasPreview(getTrack(atlasId))}</div>
+  </section>`;
+}
+
+function sandboxPreview(sampleId) {
+  const sample = sandboxSamples[sampleId] || sandboxSamples.logic;
+  const choices = sample.choices.map((choice, index) =>
+    `<li>${String.fromCharCode(65 + index)}. ${escapeHtml(choice)}</li>`).join('');
+  const answer = sample.choices[sample.correctIndex];
+  return `<div>
+    <span class="sandbox-label">GrinderAI explanation · offline demo</span>
+    <h3>${escapeHtml(sample.label)}</h3>
+    <p>${escapeHtml(sample.explanation)}</p>
+    <blockquote>${escapeHtml(sample.excerpt)}</blockquote>
+  </div>
+  <div>
+    <span class="sandbox-label">Mini question</span>
+    <h3>${escapeHtml(sample.prompt)}</h3>
+    <ol>${choices}</ol>
+    <button type="button" class="study-hint-button" data-action="sandbox-answer" aria-pressed="false">Show answer</button>
+    <p class="study-hint" data-sandbox-answer hidden><strong>${escapeHtml(answer)}</strong> — ${escapeHtml(sample.rationale)}</p>
+    <p class="muted" style="margin-block-start:.8rem">Attach your own excerpt in a study plan for a real cited answer.</p>
+  </div>`;
+}
+
+function sandboxSection() {
+  return `<section class="sandbox" aria-labelledby="sandbox-heading">
+    <div class="atlas-head">
+      <h2 id="sandbox-heading">See a cited answer before you upload</h2>
+      <span class="sandbox-label">Offline demo · no model call</span>
+    </div>
+    <div class="sandbox-pills" role="group" aria-label="Choose a sample excerpt">
+      ${Object.entries(sandboxSamples).map(([id, sample]) => `<button type="button" class="sandbox-pill"
+        data-action="sandbox-sample" data-sample-id="${id}" aria-pressed="${id === sandboxId}">${escapeHtml(sample.label)}</button>`).join('')}
+    </div>
+    <div class="sandbox-card" id="sandbox-preview">${sandboxPreview(sandboxId)}</div>
+  </section>`;
+}
+
 function dashboard() {
   const latestPlan = state.entries[0];
   return `
@@ -194,6 +349,8 @@ function dashboard() {
         </div>
       </div>
     </section>
+    ${atlasSection()}
+    ${sandboxSection()}
     <div class="dashboard-lower">
       <section class="tracks-section" aria-labelledby="featured-heading">
         <div class="section-header">
@@ -277,9 +434,9 @@ function pageContent(route) {
 
 function sidebar(page) {
   return `<aside class="sidebar" id="workspace-sidebar">
-    <a class="brand" href="#/" aria-label="ALLaroundPREP overview">
+    <a class="brand" href="#/" aria-label="Scholion overview">
       <span class="brand-symbol">${icon('orbit', 22)}</span>
-      <span class="brand-wordmark">ALLaround<b>PREP</b></span>
+      <span class="brand-wordmark">SCHOL<b>ION</b></span>
     </a>
     <div class="sidebar-body">
       ${navGroups.map(([group, links]) => `
@@ -300,7 +457,7 @@ function render({ focus = false } = {}) {
   const route = currentRoute();
   const label = navGroups.flatMap(([, links]) => links).find(([key]) => key === route.page)?.[1] ?? 'Page unavailable';
   root.dataset.page = route.page;
-  document.title = `${label} · ALLaroundPREP`;
+  document.title = `${label} · Scholion`;
   root.innerHTML = `<div class="app-shell">
     ${sidebar(route.page)}
     <div class="main-shell">
@@ -308,6 +465,9 @@ function render({ focus = false } = {}) {
         <button class="mobile-menu" type="button" data-action="toggle-menu" aria-expanded="false" aria-controls="workspace-sidebar" aria-label="Toggle navigation">${icon('menu', 23)}</button>
         <div class="breadcrumbs"><span>Workspace</span>${icon('chevron-right', 14)}<strong>${label}</strong></div>
         <div class="topbar-actions">
+          <span class="focus-clock" data-focus-clock hidden>00:00</span>
+          <button class="focus-toggle" type="button" data-action="toggle-focus" aria-pressed="${focusMode}" aria-label="Toggle exam sprint mode">${icon('clock', 15)}<span data-focus-label>${focusMode ? 'Sprint' : 'Desk'}</span></button>
+          <button class="focus-toggle" type="button" data-action="open-command" aria-label="Open quick switcher">${icon('search', 15)}<span>Ctrl K</span></button>
           <a class="topbar-action" href="#/catalog">${icon('search', 18)}<span>Find a track</span></a>
           <span class="local-badge">Local preview</span>
         </div>
@@ -315,6 +475,7 @@ function render({ focus = false } = {}) {
       <main class="main-content" id="main-content" tabindex="-1">${pageContent(route)}</main>
     </div>
   </div>`;
+  applyFocusMode();
   syncGenerationForm();
   if (focus) {
     window.scrollTo(0, 0);
@@ -324,6 +485,50 @@ function render({ focus = false } = {}) {
 
 function context() {
   return { state, commit, navigate, notify, render, route: currentRoute() };
+}
+
+function commandItems() {
+  const pages = navGroups.flatMap(([, links]) => links).map(([key, label]) => ({
+    label, path: key === 'home' ? '#/' : `#/${key}`, type: 'Page',
+  }));
+  const examItems = tracks.map(track => ({
+    label: track.name, path: `#/catalog/${track.id}`, type: 'Track',
+  }));
+  const planItems = state.entries.map(entry => ({
+    label: entry.title, path: `#/workspace/${encodeURIComponent(entry.id)}`, type: 'Plan',
+  }));
+  return [...pages, ...examItems, ...planItems];
+}
+
+function renderCommandResults(query = '') {
+  const container = document.getElementById('command-results');
+  if (!container) return;
+  const needle = query.trim().toLocaleLowerCase();
+  commandMatches = commandItems()
+    .filter(item => !needle || item.label.toLocaleLowerCase().includes(needle) || item.type.toLocaleLowerCase().includes(needle))
+    .slice(0, 9);
+  commandIndex = 0;
+  container.innerHTML = commandMatches.length
+    ? commandMatches.map((item, index) => `<button type="button" class="command-result" role="option" aria-selected="${index === 0}"
+        data-action="command-result" data-path="${escapeHtml(item.path)}">
+        <span>${escapeHtml(item.label)}</span><small>${escapeHtml(item.type)}</small>
+      </button>`).join('')
+    : '<p class="command-empty">No matching pages, tracks, or plans.</p>';
+}
+
+function openCommandPalette() {
+  const palette = document.getElementById('command-palette');
+  const input = document.getElementById('command-query');
+  if (!palette || !input) return;
+  palette.hidden = false;
+  input.value = '';
+  renderCommandResults();
+  input.focus();
+}
+
+function closeCommandPalette() {
+  const palette = document.getElementById('command-palette');
+  if (palette) palette.hidden = true;
 }
 
 function toggleMenu(button, open) {
@@ -444,6 +649,40 @@ root.addEventListener('click', event => {
       target.setAttribute('aria-pressed', String(saved));
     }
     notify(saved ? 'Track saved.' : 'Track removed from saved tracks.');
+  } else if (action === 'atlas-select' && getTrack(target.dataset.trackId)) {
+    atlasId = target.dataset.trackId;
+    target.closest('.atlas-strip').querySelectorAll('[data-track-id]').forEach(button => {
+      button.setAttribute('aria-pressed', String(button === target));
+    });
+    const preview = root.querySelector('#atlas-preview');
+    if (preview) preview.innerHTML = atlasPreview(getTrack(atlasId));
+  } else if (action === 'sandbox-sample' && sandboxSamples[target.dataset.sampleId]) {
+    sandboxId = target.dataset.sampleId;
+    target.closest('.sandbox-pills').querySelectorAll('[data-sample-id]').forEach(button => {
+      button.setAttribute('aria-pressed', String(button === target));
+    });
+    const preview = root.querySelector('#sandbox-preview');
+    if (preview) preview.innerHTML = sandboxPreview(sandboxId);
+  } else if (action === 'sandbox-answer') {
+    const answer = target.closest('.sandbox-card')?.querySelector('[data-sandbox-answer]');
+    if (!answer) return;
+    answer.hidden = !answer.hidden;
+    target.setAttribute('aria-pressed', String(!answer.hidden));
+    target.textContent = answer.hidden ? 'Show answer' : 'Hide answer';
+  } else if (action === 'toggle-focus') {
+    focusMode = !focusMode;
+    try {
+      localStorage.setItem(focusKey, focusMode ? 'sprint' : 'desk');
+    } catch {
+      // The mode still applies for this session if storage is unavailable.
+    }
+    applyFocusMode();
+    notify(focusMode ? 'Exam sprint mode on.' : 'Calm study mode on.');
+  } else if (action === 'open-command') {
+    openCommandPalette();
+  } else if (action === 'command-result') {
+    closeCommandPalette();
+    navigate(target.dataset.path);
   } else {
     handleStudyAction(action, target, context());
   }
@@ -479,9 +718,39 @@ document.querySelector('.skip-link').addEventListener('click', event => {
   root.querySelector('#main-content').focus();
 });
 
+document.addEventListener('input', event => {
+  if (event.target.id === 'command-query') renderCommandResults(event.target.value);
+});
+
+document.addEventListener('keydown', event => {
+  const palette = document.getElementById('command-palette');
+  const key = (event.key || '').toLowerCase();
+  if ((event.ctrlKey || event.metaKey) && key === 'k') {
+    event.preventDefault();
+    if (palette && !palette.hidden) closeCommandPalette();
+    else openCommandPalette();
+    return;
+  }
+  if (!palette || palette.hidden) return;
+  if (key === 'escape') {
+    event.preventDefault();
+    closeCommandPalette();
+  } else if ((key === 'arrowdown' || key === 'arrowup') && commandMatches.length) {
+    event.preventDefault();
+    commandIndex = (commandIndex + (key === 'arrowdown' ? 1 : -1) + commandMatches.length) % commandMatches.length;
+    palette.querySelectorAll('.command-result').forEach((item, index) => {
+      item.setAttribute('aria-selected', String(index === commandIndex));
+    });
+  } else if (key === 'enter' && commandMatches[commandIndex]) {
+    event.preventDefault();
+    closeCommandPalette();
+    navigate(commandMatches[commandIndex].path);
+  }
+});
+
 window.addEventListener('hashchange', () => render({ focus: true }));
 window.addEventListener('storage', event => {
-  if (event.key !== storageKey && event.key !== null) return;
+  if (event.key !== storageKey && event.key !== legacyStorageKey && event.key !== null) return;
   state = readState();
   if (!root.contains(document.activeElement) || !document.activeElement.matches('input, textarea, button')) {
     render();
@@ -495,5 +764,6 @@ window.addEventListener('keydown', event => {
   }
 });
 
+applyFocusMode();
 render();
 bindPointerGlow(root);

@@ -217,5 +217,5 @@ server.on('error', error => {
 });
 
 server.listen(port, host, () => {
-  console.log('ALLaroundPREP is available at http://' + host + ':' + server.address().port + '/');
+  console.log('Scholion is available at http://' + host + ':' + server.address().port + '/');
 });

@@ -26,7 +26,7 @@ export const sourceRegistry = [
     locale: 'en-US',
     edition: null,
     dateChecked: '2026-11-22',
-    rightsEvidence: 'Publisher practice page. AllaroundPREP links to it.',
+    rightsEvidence: 'Publisher practice page. Scholion links to it.',
     permittedUse: 'link-only',
     sourceType: 'link',
     page: null,

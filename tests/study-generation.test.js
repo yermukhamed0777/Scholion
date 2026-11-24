@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { JSDOM } from 'jsdom';
 
 const shell = await readFile(new URL('../dist/index.html', import.meta.url), 'utf8');
-const storageKey = 'allaroundprep:v1';
+const storageKey = 'scholion:v1';
 const browserGlobals = ['window', 'document', 'localStorage', 'FormData'];
 
 async function openWorkspace(t, hash, instance, savedState) {

@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#081321">
-  <meta name="description" content="Plan, practice, and track your progress across exams, university courses, and the skills you want to learn.">
-  <title>ALLaroundPREP</title>
+  <meta name="theme-color" content="#101010">
+  <meta name="description" content="Scholion is a source-grounded study workspace for exams, university courses, and workplace learning. GrinderAI explains your material with citations.">
+  <title>Scholion — source-grounded study workspace</title>
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./study.css">
   <script type="module" src="./app.js"></script>
@@ -15,6 +15,12 @@
   <a class="skip-link" href="#main-content">Skip to content</a>
   <div id="app"></div>
   <div id="announcement" class="toast" role="status" aria-live="polite" hidden></div>
+  <div id="command-palette" class="command-palette" hidden>
+    <div class="command-dialog" role="dialog" aria-modal="true" aria-label="Quick switcher">
+      <input id="command-query" type="search" placeholder="Jump to a track, plan, or page…" aria-label="Search commands" autocomplete="off">
+      <div id="command-results" class="command-results" role="listbox" aria-label="Results"></div>
+    </div>
+  </div>
   <noscript>Enable JavaScript to use your study workspace.</noscript>
 </body>
 </html>

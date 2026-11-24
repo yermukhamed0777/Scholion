@@ -162,10 +162,12 @@ function studyPlanPage(entry) {
       </section>
       <aside class="panel study-aside" aria-labelledby="plan-materials-heading">
         <h2 class="section-title" id="plan-materials-heading">Study materials</h2>
+        <div class="desk-rail-label"><span>Margin · source desk</span><span>Click a citation to verify</span></div>
         ${entry.notes ? `<div class="study-note"><h3>Notes</h3><p>${escapeHtml(entry.notes)}</p></div>` : ''}
         ${entry.sources.map(sourcePreview).join('')}
         ${entry.notes || entry.sources.length ? '' : '<p class="muted">This plan started with a topic.</p>'}
         <a class="button button-secondary" href="#/materials">All materials</a>
+        <div class="desk-rail-label"><span>Margin · GrinderAI</span><span>Always linked to a source</span></div>
         ${entry.sources.length ? `<form class="study-form" data-study-form="generate" data-entry-id="${escapeHtml(entry.id)}">
           <label class="study-field">Source for GrinderAI
             <select name="sourceId" required>${entry.sources.map(source => `<option value="${escapeHtml(source.id)}"
@@ -254,6 +256,11 @@ function practiceQuestion(track, questions, session) {
             </label>`;
           }).join('')}
         </fieldset>
+        ${answer ? '' : `<div>
+          <button type="button" class="study-hint-button" data-action="reveal-hint"
+            data-question-id="${escapeHtml(question.id)}" aria-pressed="false">Show one hint</button>
+          <p class="study-hint" data-hint-for="${escapeHtml(question.id)}" hidden>${escapeHtml(question.hint || 'Review the passage and try again.')}</p>
+        </div>`}
         ${feedback}
         <div class="study-form-footer">
           ${answer ? `<button class="button button-primary" type="button" data-action="next-practice-question">${session.index + 1 < questions.length ? 'Next question' : 'See results'}</button>` : '<button class="button button-primary" type="submit">Check answer</button>'}
@@ -339,8 +346,22 @@ export function handleStudyAction(action, target, { commit, render }) {
       const source = document.getElementById(`source-${target.dataset.sourceId}`);
       if (source) {
         source.open = true;
+        document.querySelectorAll('.study-source.is-cited').forEach(item => {
+          if (item !== source) item.classList.remove('is-cited');
+        });
+        source.classList.add('is-cited');
         source.querySelector('summary')?.focus();
+        if (typeof source.scrollIntoView === 'function') source.scrollIntoView({ block: 'nearest' });
       }
+      return true;
+    }
+    case 'reveal-hint': {
+      const hint = [...document.querySelectorAll('[data-hint-for]')]
+        .find(item => item.dataset.hintFor === target.dataset.questionId);
+      if (!hint) return true;
+      hint.hidden = !hint.hidden;
+      target.setAttribute('aria-pressed', String(!hint.hidden));
+      target.textContent = hint.hidden ? 'Show one hint' : 'Hide hint';
       return true;
     }
     case 'toggle-study-task': {
