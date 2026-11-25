@@ -1,6 +1,28 @@
 # Scholion progress
 
-## Current status — 24 November 2026
+## Current status — 25 November 2026
+
+**Status:** M1 live generation: `ready for review`. M0 design confirmation is still pending. Independent reproduction is pending; this entry is written by the editing agent and is not marked `verified`.
+
+Owner decision recorded: the repository was made public on 25 November 2026 and the owner explicitly authorized hosting on Vercel, overriding the roadmap's default "ask before deploying" hold for this one deployment.
+
+### M1 evidence
+
+1. **Commit:** `f3202cc0f5d4c359707c71339592004f8a0de52f` — `Enable Vercel deployment with a shared generation endpoint`. Files: `.vercelignore`, `api/generate-study.js`, `package.json`, `scripts/serve.mjs`, `scripts/study-endpoint.mjs`, `tests/vercel-endpoint.test.js`, `vercel.json`. The generation contract moved into `scripts/study-endpoint.mjs` so the local server and hosted function run the same validation.
+2. **Automated evidence:** `npm run check` passed (now also checks `scripts/study-endpoint.mjs` and `api/generate-study.js`); `npm test` passed **39** checks, including four new hosted-endpoint contract checks; `git diff --check` was clean before commit.
+3. **Product evidence:** Ollama reported `gpt-oss:20b` installed and reachable at `http://127.0.0.1:11434`. The app was run with `node scripts/serve.mjs 4183`. A POST to the app's own `/api/generate-study` with the synthetic triangle excerpt succeeded and returned HTTP 200. On Vercel, `GET /app.js` returned 200 and a POST to the hosted endpoint returned JSON 502 with a readable message because no hosted provider is configured; that is the documented boundary, not a UI defect.
+4. **Live evidence:** model `gpt-oss:20b`; source ID `synthetic-triangle-1`; question "Which statement is NOT true according to the excerpt?"; correct index `3` ("A scalene triangle has at least one side equal to another side"). Checked by the editor against the excerpt sentence "A scalene triangle has three sides of different lengths" — the keyed answer is correct and uses no outside fact. A direct Ollama call was not used as evidence.
+5. **Independent result:** pending. The owner should reproduce the endpoint POST and the DOM path (form → second source → generate → grade → two citations → reload). `tests/study-import.test.js` exercises that DOM path with a labelled test double; a fresh live-model browser walkthrough has not been observed.
+
+**Blocker / next action:** no technical blocker for M1; the remaining gate is independent reproduction. Do not mark `verified` from this entry alone. A hosted provider needs an explicit owner decision before generation can work on the public deployment; until then the endpoint returns JSON 502 by design.
+
+### Deployment record
+
+- Production URL: <https://scholion-beta.vercel.app> (public, openable; deployment `dpl_A1vD7k1mdepUzx7BpojbDwccqTgu`).
+- Vercel project `scholion` under account `erm1ham3d2204-2491`, connected to `yermukhamed0777/Scholion`.
+- `.vercelignore` excludes `Materials/`, `tmp/`, PDFs, agent scratch files, `*.txt`, conversation transcripts, docs, and tests so private local material is never uploaded.
+
+## Previous status — 24 November 2026
 
 **Status:** M0 identity, migration, and design baseline: `in progress` pending owner's visual confirmation. M1 live generation: `open`.
 

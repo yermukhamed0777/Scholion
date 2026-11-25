@@ -14,6 +14,12 @@ npm start
 
 Open <http://127.0.0.1:4173>. `npm run dev` is an alias. If the port is occupied, pass another port, for example `node scripts/serve.mjs 4183`. With a hosted `PORT`, the server binds all interfaces for a reverse proxy; without it, it stays on loopback. `npm run check` validates JavaScript syntax.
 
+## Hosted deployment
+
+The public build lives at <https://scholion-beta.vercel.app>. Vercel serves `dist/` as static files and routes `POST /api/generate-study` to `api/generate-study.js`, which imports the same `scripts/study-endpoint.mjs` contract as the local server. `.vercelignore` keeps private local material out of the upload.
+
+The hosted endpoint intentionally rejects non-loopback provider URLs. Without an owner-approved hosted provider, generation returns a JSON 502 while the rest of the workspace (plans, atlas, sandbox, sample practice, progress) works normally. Learner data stays in the browser under `scholion:v1`; there are no accounts or server-side storage yet.
+
 ## What is in the workspace
 
 - **Overview** with an exam and course atlas: switch between SAT, UNT, ORT, EGE, Gaokao, HKDSE, and Discrete Mathematics previews.

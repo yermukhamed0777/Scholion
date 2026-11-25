@@ -35,6 +35,8 @@ Scholion is deliberately **not** a cartoon flashcard app and not a cramped test 
 
 A green test suite is necessary but not sufficient. Live-model and regular-browser checks stay open until they are observed and recorded.
 
+**Owner decision, 25 November 2026:** the repository was made public and hosting on Vercel was explicitly authorized for this deployment, overriding the default hold in section 3. The build is at <https://scholion-beta.vercel.app>. A live `gpt-oss:20b` answer through the app's own endpoint was observed and recorded in the progress log with status `ready for review`; independent reproduction and a regular-browser walkthrough remain open. No hosted provider is configured, so generation on the public build returns the documented JSON 502 until the owner approves one. Work on accounts, PDF import, and new visual milestones is still deferred.
+
 ---
 
 ## 3. Roles and working process
