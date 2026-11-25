@@ -1,0 +1,15 @@
+# Private local material and agent scratch files must never be uploaded.
+node_modules/
+Materials/
+tmp/
+testdir/
+.workbuddy-ai/
+*.pdf
+*.txt
+Scholion-conversation.md
+docs/
+tests/
+test-harness.js
+HERMES_*.txt
+CHATGPT_NEXT_PROMPT.md
+.git/
