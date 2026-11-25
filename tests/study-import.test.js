@@ -83,6 +83,11 @@ test('study uploads preserve each edited citation and open its passage after rem
   assert.equal(window.location.hash, `#/workspace/${entry.id}`);
   assert.deepEqual(entry.sources.map(({ name, title, pages }) => ({ name, title, pages: pages ?? '' })),
     fixtures.map(({ name, title, pages }) => ({ name, title, pages })));
+  for (const source of entry.sources) {
+    assert.ok(Array.isArray(source.spans) && source.spans.length > 0,
+      'An imported source must store passage spans with exact offsets');
+    for (const span of source.spans) assert.equal(source.text.slice(span.start, span.end), span.text);
+  }
   checkCitations(window.document, fixtures);
 
   // Mount a new app and DOM with only the browser storage from the successful form submit.

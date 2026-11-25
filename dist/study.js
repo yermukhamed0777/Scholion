@@ -1,5 +1,5 @@
 import { createStudyPlan, getTrack, sampleQuestions, tracks } from './learning.js';
-import { highlightSegments, normalizeSpan } from './source-spans.js';
+import { buildSpans, highlightSegments, normalizeSpan } from './source-spans.js';
 import { escapeHtml, icon } from './ui.js';
 
 const uploadLimit = 256 * 1024;
@@ -114,7 +114,11 @@ export function handleStudySourceChange(input) {
 function sourceCitation(source, span) {
   if (!source) return '';
   const label = source.pages ? `${source.title || source.name}, pp. ${source.pages}` : source.title || source.name;
-  const valid = normalizeSpan(span, source.text.length);
+  // A model quote wins; otherwise fall back to the first span captured when
+  // the file was imported so a citation still lands on a real passage.
+  const anchor = normalizeSpan(span, source.text.length)
+    || normalizeSpan(Array.isArray(source.spans) ? source.spans[0] : null, source.text.length);
+  const valid = anchor;
   const offsets = valid ? ` data-span-start="${valid.start}" data-span-end="${valid.end}"` : '';
   return `<button class="study-text-link study-citation-link" type="button"
     data-action="open-study-source" data-source-id="${escapeHtml(source.id)}"${offsets}>${icon('file-text', 16)} <span>${escapeHtml(label)}</span></button>`;
@@ -496,11 +500,14 @@ async function addStudyPlan(form, { commit, navigate, notify }) {
     const sources = await Promise.all(files.map(async (file, index) => {
       const title = form.elements.namedItem(`source-title-${index}`)?.value.trim().slice(0, sourceTitleLimit);
       const pages = form.elements.namedItem(`source-pages-${index}`)?.value.trim().slice(0, sourcePagesLimit);
+      const text = (await file.text()).trim();
       return {
         id: crypto.randomUUID(),
         name: file.name,
         title: title || file.name,
-        text: (await file.text()).trim(),
+        text,
+        // Offsets are captured at ingestion, never inferred from a filename.
+        spans: buildSpans(text),
         ...(pages ? { pages } : {}),
       };
     }));
