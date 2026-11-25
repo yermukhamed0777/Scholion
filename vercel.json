@@ -2,6 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "outputDirectory": "dist",
   "buildCommand": "npm run check",
+  "rewrites": [
+    { "source": "/api/config", "destination": "/api/account?route=/api/config" },
+    { "source": "/api/auth/:path*", "destination": "/api/account?route=/api/auth/:path*" },
+    { "source": "/api/workspace", "destination": "/api/account?route=/api/workspace" },
+    { "source": "/api/workspace/:path*", "destination": "/api/account?route=/api/workspace/:path*" }
+  ],
   "functions": {
     "api/generate-study.js": {
       "maxDuration": 60
