@@ -5,6 +5,7 @@ import { extname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveServerConfig } from './server-config.js';
 import { generateStudy } from './study-endpoint.mjs';
+import { handleAccountRequest } from './account-endpoints.mjs';
 
 const siteRoot = fileURLToPath(new URL('../dist/', import.meta.url));
 const { host, port } = resolveServerConfig(process.env, process.argv.slice(2));
@@ -27,6 +28,10 @@ const server = createServer(async (request, response) => {
   if (pathname === '/api/generate-study') {
     if (request.method === 'POST') await generateStudy(request, response);
     else response.writeHead(405, { Allow: 'POST' }).end();
+    return;
+  }
+  if (pathname === '/api/config' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/workspace')) {
+    await handleAccountRequest(pathname, request, response);
     return;
   }
   if (request.method !== 'GET' && request.method !== 'HEAD') {

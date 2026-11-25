@@ -56,6 +56,9 @@ let focusStartedAt;
 let focusTimer;
 let commandMatches = [];
 let commandIndex = 0;
+// Accounts stay off until /api/config confirms a configured backend. Local
+// plans and the offline sandbox work exactly as before when it is absent.
+const account = { configured: false, user: null, ready: false, mode: 'login' };
 
 const sandboxSamples = {
   logic: {
@@ -119,6 +122,13 @@ function commit(updater) {
     return false;
   }
   state = next;
+  if (account.user && account.ready) {
+    fetch('/api/workspace', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(next),
+    }).catch(() => notify('Your changes are saved here but could not sync to your account. Try again soon.'));
+  }
   return true;
 }
 
@@ -432,6 +442,122 @@ function pageContent(route) {
   return renderStudyPage(route, state);
 }
 
+function accountFormMarkup() {
+  const signup = account.mode === 'signup';
+  return `<form class="account-form" data-account-form="${account.mode}">
+    <label class="study-field"><span>Email</span><input type="email" name="email" required autocomplete="email"></label>
+    <label class="study-field"><span>Password</span><input type="password" name="password" minlength="8" required autocomplete="${signup ? 'new-password' : 'current-password'}"></label>
+    <button class="button button-primary" type="submit">${signup ? 'Create account' : 'Sign in'}</button>
+    <button type="button" class="text-link" data-action="account-mode" data-mode="${signup ? 'login' : 'signup'}">${signup ? 'Have an account? Sign in' : 'Create an account'}</button>
+  </form>`;
+}
+
+function accountMarkup() {
+  if (account.user) {
+    const sources = state.entries.flatMap(entry => entry.sources);
+    return `<div class="sidebar-status">${icon('monitor', 19)}<div><strong>${escapeHtml(account.user.email || 'Signed in')}</strong><small>Synced to your account</small></div></div>
+      ${sources.length ? `<form class="account-form" data-account-form="delete-source">
+        <select name="sourceId" aria-label="Source to delete">${sources.map(source => `<option value="${escapeHtml(source.id)}">${escapeHtml(source.title || source.name)}</option>`).join('')}</select>
+        <button class="button button-secondary" type="submit">Delete source</button>
+      </form>` : ''}
+      <button type="button" class="text-link" data-action="account-logout">Sign out</button>`;
+  }
+  if (account.configured) return accountFormMarkup();
+  return `<div class="sidebar-status">${icon('monitor', 19)}<div><strong>Local workspace</strong><small>Saved in this browser</small></div></div>`;
+}
+
+function renderAccount() {
+  const panel = root.querySelector('.sidebar-footer');
+  if (panel) panel.innerHTML = accountMarkup();
+}
+
+async function initAccount() {
+  // jsdom has no window.fetch: account startup is a real-browser feature and
+  // must never interfere with the DOM test harness.
+  if (typeof window.fetch !== 'function') return;
+  try {
+    const configResponse = await fetch('/api/config');
+    if (!configResponse.ok) return;
+    const config = await configResponse.json();
+    if (!config.accounts) return;
+    account.configured = true;
+    const sessionResponse = await fetch('/api/auth/session');
+    const session = sessionResponse.ok ? await sessionResponse.json() : { user: null };
+    account.user = session.user || null;
+    if (account.user) {
+      const remoteResponse = await fetch('/api/workspace');
+      if (remoteResponse.ok) {
+        const remote = await remoteResponse.json();
+        const hasRemote = remote?.state && (remote.state.entries?.length || remote.state.attempts?.length);
+        const local = readState(state);
+        if (hasRemote) {
+          state = remote.state;
+        } else if (local.entries.length || local.attempts.length) {
+          const migratedResponse = await fetch('/api/workspace/migrate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ state: local }),
+          });
+          if (migratedResponse.ok) {
+            const migrated = await migratedResponse.json();
+            if (migrated?.state) state = migrated.state;
+          }
+        }
+      }
+      account.ready = true;
+    }
+  } catch {
+    // Remain in local-only mode; a failed account check never blocks study.
+  }
+  renderAccount();
+  render();
+}
+
+async function submitAccountForm(form) {
+  const mode = form.dataset.accountForm;
+  try {
+    if (mode === 'delete-source') {
+      const sourceId = form.elements.namedItem('sourceId')?.value;
+      const response = await fetch('/api/workspace/delete-source', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceId }),
+      });
+      if (!response.ok) throw new Error('The source could not be deleted.');
+      const { state: next } = await response.json();
+      state = next;
+      try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* local copy is optional */ }
+      notify('Source and its generated material were deleted.');
+      render();
+      return;
+    }
+    const email = form.elements.namedItem('email')?.value;
+    const password = form.elements.namedItem('password')?.value;
+    const response = await fetch(`/api/auth/${mode === 'signup' ? 'signup' : 'login'}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(result?.error?.message || 'Sign in failed.');
+    }
+    await initAccount();
+    notify(mode === 'signup' ? 'Account created.' : 'Signed in.');
+  } catch (error) {
+    notify(error?.message || 'That account action could not be completed.');
+  }
+}
+
+async function logoutAccount() {
+  try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* clear locally anyway */ }
+  account.user = null;
+  account.ready = false;
+  notify('Signed out. Your local workspace is still here.');
+  renderAccount();
+  render();
+}
+
 function sidebar(page) {
   return `<aside class="sidebar" id="workspace-sidebar">
     <a class="brand" href="#/" aria-label="Scholion overview">
@@ -448,7 +574,7 @@ function sidebar(page) {
         </nav>`).join('')}
     </div>
     <div class="sidebar-footer">
-      <div class="sidebar-status">${icon('monitor', 19)}<div><strong>Local workspace</strong><small>Saved in this browser</small></div></div>
+      ${accountMarkup()}
     </div>
   </aside>`;
 }
@@ -688,6 +814,11 @@ root.addEventListener('click', event => {
   } else if (action === 'command-result') {
     closeCommandPalette();
     navigate(target.dataset.path);
+  } else if (action === 'account-mode') {
+    account.mode = target.dataset.mode === 'signup' ? 'signup' : 'login';
+    renderAccount();
+  } else if (action === 'account-logout') {
+    logoutAccount();
   } else {
     handleStudyAction(action, target, context());
   }
@@ -700,6 +831,11 @@ root.addEventListener('input', event => {
 });
 
 root.addEventListener('submit', event => {
+  if (event.target.matches('form[data-account-form]')) {
+    event.preventDefault();
+    submitAccountForm(event.target);
+    return;
+  }
   if (!event.target.matches('form[data-study-form]')) return;
   event.preventDefault();
   if (event.target.dataset.studyForm === 'generate') {
@@ -772,3 +908,4 @@ window.addEventListener('keydown', event => {
 applyFocusMode();
 render();
 bindPointerGlow(root);
+initAccount();
