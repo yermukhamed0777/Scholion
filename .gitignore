@@ -7,4 +7,16 @@ node_modules/
 Materials/
 *.pdf
 
+# Local scratch, transcripts and agent working files stay out of source control
+tmp/
+testdir/
+test-harness.js
+HERMES_*.txt
+Scholion-conversation.md
+.workbuddy-ai/
+docs/grinderai-explanation.md
+docs/grinderai-quiz.md
+docs/hermes-progress-milestone3.md
+tests/test_provider_failure.js
+
 .vercel
