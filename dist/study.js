@@ -1,4 +1,5 @@
 import { createStudyPlan, getTrack, sampleQuestions, tracks } from './learning.js';
+import { highlightSegments, normalizeSpan } from './source-spans.js';
 import { escapeHtml, icon } from './ui.js';
 
 const uploadLimit = 256 * 1024;
@@ -74,12 +75,20 @@ function workspacePage(entries, entryId, goal) {
     </div>`;
 }
 
-function sourcePreview(source) {
+function sourceTextHtml(source, span) {
+  return highlightSegments(source.text, span)
+    .map(part => part.mark
+      ? `<mark class="study-citation-highlight">${escapeHtml(part.text)}</mark>`
+      : escapeHtml(part.text))
+    .join('');
+}
+
+function sourcePreview(source, span) {
   const title = escapeHtml(source.title || source.name);
   const pages = source.pages ? ` (${escapeHtml(source.pages)})` : '';
   return `<details class="study-source" id="source-${escapeHtml(source.id)}">
     <summary class="study-citation">${icon('file-text', 18)} <span>${title}${pages}</span></summary>
-    <pre>${escapeHtml(source.text)}</pre>
+    <pre>${sourceTextHtml(source, span)}</pre>
   </details>`;
 }
 
@@ -102,41 +111,78 @@ export function handleStudySourceChange(input) {
     </fieldset>`).join('');
 }
 
-function sourceCitation(source) {
+function sourceCitation(source, span) {
   if (!source) return '';
   const label = source.pages ? `${source.title || source.name}, pp. ${source.pages}` : source.title || source.name;
+  const valid = normalizeSpan(span, source.text.length);
+  const offsets = valid ? ` data-span-start="${valid.start}" data-span-end="${valid.end}"` : '';
   return `<button class="study-text-link study-citation-link" type="button"
-    data-action="open-study-source" data-source-id="${escapeHtml(source.id)}">${icon('file-text', 16)} <span>${escapeHtml(label)}</span></button>`;
+    data-action="open-study-source" data-source-id="${escapeHtml(source.id)}"${offsets}>${icon('file-text', 16)} <span>${escapeHtml(label)}</span></button>`;
+}
+
+function choiceFields(question, name, answer) {
+  return `<fieldset class="study-choices" ${answer ? 'disabled' : ''}>
+    <legend>${escapeHtml(question.prompt)}</legend>
+    ${question.choices.map((choice, index) => {
+      const correct = answer && index === question.correctIndex;
+      const selected = answer?.choiceIndex === index;
+      return `<label class="study-choice ${correct ? 'study-choice-correct' : selected ? 'study-choice-review' : ''}">
+        <input type="radio" name="${name}" value="${index}" required ${selected ? 'checked' : ''}>
+        <span class="study-choice-text">${escapeHtml(choice)}</span>
+        ${correct ? '<small>Correct answer</small>' : selected ? '<small>Your answer</small>' : ''}
+      </label>`;
+    }).join('')}
+  </fieldset>`;
+}
+
+function drillQuestion(question, index, answer, source) {
+  const citation = sourceCitation(source, question.span);
+  return `<section class="generated-question" aria-labelledby="generated-question-${index}">
+    <h4 id="generated-question-${index}">Question ${index + 1}</h4>
+    ${choiceFields(question, `choice-${index}`, answer)}
+    ${answer ? `<div class="generated-question-feedback study-feedback ${answer.correct ? 'study-feedback-correct' : 'study-feedback-review'}" tabindex="-1">
+      <strong>Question ${index + 1}: ${answer.correct ? 'Correct' : 'Incorrect'}</strong>
+      <p>${escapeHtml(question.rationale)}</p>
+      ${citation}
+    </div>` : ''}
+  </section>`;
 }
 
 function generatedMaterial(entry) {
   const result = entry.generatedStudy;
   if (!result) return '';
-  const { answer, question } = result;
-  const citation = sourceCitation(entry.sources.find(({ id }) => id === result.sourceId));
-  return `<section class="generated-material" aria-labelledby="generated-material-heading">
-    <h3 id="generated-material-heading" tabindex="-1">Generated explanation</h3>
+  const questions = Array.isArray(result.questions) && result.questions.length ? result.questions : [result.question];
+  const source = entry.sources.find(({ id }) => id === result.sourceId);
+  const citation = sourceCitation(source, result.span);
+  const heading = `<h3 id="generated-material-heading" tabindex="-1">Generated explanation</h3>
     <p>${escapeHtml(result.explanation)}</p>
-    ${citation}
-    <form class="study-form" data-study-form="generated-quiz"
+    ${citation}`;
+
+  // One-question results keep the original mark-up and grading path so older
+  // saved plans and their regression tests stay readable.
+  if (questions.length === 1) {
+    const { answer, question } = result;
+    return `<section class="generated-material" aria-labelledby="generated-material-heading">
+      ${heading}
+      <form class="study-form" data-study-form="generated-quiz"
+        data-entry-id="${escapeHtml(entry.id)}" data-generation-id="${escapeHtml(result.id)}">
+        ${choiceFields(question, 'choice', answer)}
+        ${answer ? `<div class="generated-question-feedback study-feedback ${answer.correct ? 'study-feedback-correct' : 'study-feedback-review'}" tabindex="-1">
+          <strong>${answer.correct ? 'Correct' : 'Incorrect'}</strong>
+          <p>${escapeHtml(question.rationale)}</p>
+          ${citation}
+        </div>` : '<div class="study-form-footer"><button class="button button-primary" type="submit">Check answer</button></div>'}
+      </form>
+    </section>`;
+  }
+
+  const answers = Array.isArray(result.answers) ? result.answers : [];
+  return `<section class="generated-material" aria-labelledby="generated-material-heading">
+    ${heading}
+    <form class="study-form" data-study-form="generated-drill"
       data-entry-id="${escapeHtml(entry.id)}" data-generation-id="${escapeHtml(result.id)}">
-      <fieldset class="study-choices" ${answer ? 'disabled' : ''}>
-        <legend>${escapeHtml(question.prompt)}</legend>
-        ${question.choices.map((choice, index) => {
-          const correct = answer && index === question.correctIndex;
-          const selected = answer?.choiceIndex === index;
-          return `<label class="study-choice ${correct ? 'study-choice-correct' : selected ? 'study-choice-review' : ''}">
-            <input type="radio" name="choice" value="${index}" required ${selected ? 'checked' : ''}>
-            <span class="study-choice-text">${escapeHtml(choice)}</span>
-            ${correct ? '<small>Correct answer</small>' : selected ? '<small>Your answer</small>' : ''}
-          </label>`;
-        }).join('')}
-      </fieldset>
-      ${answer ? `<div class="generated-question-feedback study-feedback ${answer.correct ? 'study-feedback-correct' : 'study-feedback-review'}" tabindex="-1">
-        <strong>${answer.correct ? 'Correct' : 'Incorrect'}</strong>
-        <p>${escapeHtml(question.rationale)}</p>
-        ${citation}
-      </div>` : '<div class="study-form-footer"><button class="button button-primary" type="submit">Check answer</button></div>'}
+      ${questions.map((question, index) => drillQuestion(question, index, answers[index], source)).join('')}
+      ${answers.length < questions.length ? '<div class="study-form-footer"><button class="button button-primary" type="submit">Check all answers</button></div>' : ''}
     </form>
   </section>`;
 }
@@ -164,7 +210,7 @@ function studyPlanPage(entry) {
         <h2 class="section-title" id="plan-materials-heading">Study materials</h2>
         <div class="desk-rail-label"><span>Margin · source desk</span><span>Click a citation to verify</span></div>
         ${entry.notes ? `<div class="study-note"><h3>Notes</h3><p>${escapeHtml(entry.notes)}</p></div>` : ''}
-        ${entry.sources.map(sourcePreview).join('')}
+        ${entry.sources.map(source => sourcePreview(source, source.id === entry.generatedStudy?.sourceId ? entry.generatedStudy.span : undefined)).join('')}
         ${entry.notes || entry.sources.length ? '' : '<p class="muted">This plan started with a topic.</p>'}
         <a class="button button-secondary" href="#/materials">All materials</a>
         <div class="desk-rail-label"><span>Margin · GrinderAI</span><span>Always linked to a source</span></div>
@@ -192,7 +238,7 @@ function materialsPage(entries) {
         <a class="study-text-link" href="${entryUrl(entry.id)}">Open plan</a>
       </div>
       ${entry.notes ? `<details class="study-source"><summary>${icon('file-text', 18)} <span>Pasted notes</span></summary><pre>${escapeHtml(entry.notes)}</pre></details>` : ''}
-      ${entry.sources.map(sourcePreview).join('')}
+      ${entry.sources.map(source => sourcePreview(source)).join('')}
     </section>`).join('')}</div>` : `<section class="panel study-empty">
       <span class="study-icon">${icon('folder-open', 22)}</span>
       <h2 class="section-title">No materials yet</h2>
@@ -350,6 +396,16 @@ export function handleStudyAction(action, target, { commit, render }) {
           if (item !== source) item.classList.remove('is-cited');
         });
         source.classList.add('is-cited');
+        const pre = source.querySelector('pre');
+        const start = Number(target.dataset.spanStart);
+        const end = Number(target.dataset.spanEnd);
+        if (pre && Number.isInteger(start) && Number.isInteger(end)) {
+          pre.innerHTML = highlightSegments(pre.textContent, { start, end })
+            .map(part => part.mark
+              ? `<mark class="study-citation-highlight">${escapeHtml(part.text)}</mark>`
+              : escapeHtml(part.text))
+            .join('');
+        }
         source.querySelector('summary')?.focus();
         if (typeof source.scrollIntoView === 'function') source.scrollIntoView({ block: 'nearest' });
       }
@@ -527,11 +583,56 @@ function checkGeneratedAnswer(form, { commit, render }) {
   }
 }
 
+function checkGeneratedDrill(form, { commit, render }) {
+  const { entryId, generationId } = form.dataset;
+  const data = new FormData(form);
+  let graded = false;
+  const saved = commit((state) => {
+    const entry = state.entries.find(({ id }) => id === entryId);
+    const result = entry?.generatedStudy;
+    if (!result || result.id !== generationId || result.answers || !Array.isArray(result.questions)) return state;
+
+    const answers = result.questions.map((question, index) => {
+      const value = data.get(`choice-${index}`);
+      if (value === null) return null;
+      const choiceIndex = Number(value);
+      if (!Number.isInteger(choiceIndex) || choiceIndex < 0 || choiceIndex >= question.choices.length) return null;
+      return {
+        questionId: `${generationId}-${index}`,
+        choiceIndex,
+        correct: choiceIndex === question.correctIndex,
+      };
+    });
+    if (answers.some((answer) => !answer)) return state;
+
+    graded = true;
+    const attempts = answers.map((answer, index) => ({
+      ...answer,
+      entryId,
+      generationId,
+      questionId: result.questions[index].id || `${generationId}-${index}`,
+      createdAt: new Date().toISOString(),
+    }));
+    return {
+      ...state,
+      entries: state.entries.map((item) => item === entry
+        ? { ...entry, generatedStudy: { ...result, answers } }
+        : item),
+      attempts: [...state.attempts, ...attempts],
+    };
+  });
+  if (graded && saved !== false) {
+    render();
+    document.querySelector('.generated-question-feedback')?.focus();
+  }
+}
+
 export async function handleStudySubmit(form, context) {
   switch (form.dataset.studyForm) {
     case 'workspace': await addStudyPlan(form, context); return true;
     case 'practice': checkPracticeAnswer(form, context); return true;
     case 'generated-quiz': checkGeneratedAnswer(form, context); return true;
+    case 'generated-drill': checkGeneratedDrill(form, context); return true;
     default: return false;
   }
 }

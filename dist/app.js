@@ -552,11 +552,14 @@ function syncGenerationForm() {
 }
 
 function isGeneratedStudy(value, sourceId) {
-  const question = value?.question;
+  const questions = Array.isArray(value?.questions) && value.questions.length
+    ? value.questions
+    : [value?.question];
+  const validQuestion = item => typeof item?.prompt === 'string' && typeof item.rationale === 'string' &&
+    Array.isArray(item.choices) && item.choices.length === 4 && item.choices.every(choice => typeof choice === 'string') &&
+    Number.isInteger(item.correctIndex) && item.correctIndex >= 0 && item.correctIndex < item.choices.length;
   return value?.sourceId === sourceId && typeof value.model === 'string' && typeof value.explanation === 'string' &&
-    typeof question?.prompt === 'string' && typeof question.rationale === 'string' &&
-    Array.isArray(question.choices) && question.choices.length === 4 && question.choices.every(choice => typeof choice === 'string') &&
-    Number.isInteger(question.correctIndex) && question.correctIndex >= 0 && question.correctIndex < question.choices.length;
+    questions.length <= 3 && questions.every(validQuestion);
 }
 
 async function generateStudy(form) {
@@ -590,7 +593,9 @@ async function generateStudy(form) {
       sourceId,
       model: result.model,
       explanation: result.explanation,
+      ...(result.span ? { span: result.span } : {}),
       question: result.question,
+      ...(result.questions ? { questions: result.questions } : {}),
     };
     saved = commit(current => ({
       ...current,

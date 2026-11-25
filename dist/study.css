@@ -605,9 +605,17 @@
 }
 .study-citation-link::before { content: "↗"; margin-inline-end: .35rem; color: var(--accent); }
 
+.study-citation-highlight {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--text);
+  box-shadow: inset 0 -1px 0 var(--accent);
+}
+
 .generated-material { border-block-start: 2px solid var(--accent); }
 .generated-material > h3 { color: var(--accent); font: 700 .75rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
 .generated-material > p { color: var(--text); }
+.generated-question { border-block-start: 1px solid var(--border); padding-block-start: 1rem; margin-block-start: 1rem; }
+.generated-question > h4 { color: var(--muted); font: 700 .75rem/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
 .study-progress { border-radius: 0; background: var(--field); color: var(--signal); }
 .study-progress::-webkit-progress-value, .study-progress::-moz-progress-bar { background: var(--signal); }
 .study-icon { border: 1px solid var(--border-strong); border-radius: 0; background: var(--field); color: var(--accent); }
