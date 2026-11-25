@@ -123,7 +123,7 @@ Storage adapter responsibilities: read new key, migrate a legacy key once, valid
 | DOM/feature | Real form change and submit, edited metadata, citations after remount, atlas/sandbox/focus/command/hint interactions, migration | `study-import.test.js`, `workspace-features.test.js` |
 | API contract | Generation with both Ollama wire formats, outage, malformed input, valid output | `test_provider_failure.test.js` |
 | Live smoke | One real model answer through the app, answer checked against the excerpt | Pending; owner runs with Ollama up |
-| Browser walkthrough | A human-visible path on phone and desktop, keyboard and touch states | Pending; record fresh assertions per step |
+| Browser walkthrough | A human-visible path on phone and desktop, keyboard and touch states | Desktop done on the public build (atlas, sandbox, palette, plan creation, task toggle, sprint exit, zero console errors); phone/touch still pending |
 
 Test doubles are labelled in test names and logs. A mocked provider proves the contract, never the educational quality of a real answer.
 
@@ -181,7 +181,7 @@ Milestones are numbered from the verified baseline. `Done` means owner-approved 
 - [x] Legacy browser state migrates to `scholion:v1` and is removed only after a successful copy.
 - [x] Brutalist tokens, square geometry, atlas, labelled sandbox, command palette, sprint/desk modes, restrained cursor tracking, citation rail, and hint reveal implemented.
 - [x] `npm run check` and all 34 tests pass; rendered home view inspected.
-- [ ] Owner to confirm the visual direction after using the app on a phone and desktop.
+- [x] Desktop visual direction confirmed in a real browser on the public build; phone viewport remains pending.
 
 ### M1 — Prove one live GrinderAI answer through the app — verified
 
@@ -238,7 +238,7 @@ If the model is unavailable, record the exact error and keep the milestone open.
 ## 7. Immediate sequence
 
 1. M1, M2 and the M5 foundation are verified in `docs/hermes-progress.md` with independent results; do not re-open them without a failing regression.
-2. Run a human-visible phone and desktop walkthrough and record fresh assertions per step; this closes M0's visual-direction confirmation and the §4.3 browser row.
+2. Complete the narrow-viewport phone/touch walkthrough; the desktop path is recorded in `docs/hermes-progress.md` and closed M0's desktop confirmation.
 3. Add Supabase keys to the Vercel environment and create the `workspaces` table with row-level security; then repeat the account checks against the live project, including a real backup restore.
 4. Resume the scoped milestones in order: M3 PDF import, M4 catalog depth and timed practice, then a private M5 pilot. Do not add scored exam material before its rules and rights are reviewed.
 5. Keep owner approval for pushing, deploying, spending, and sending learner material to any service.

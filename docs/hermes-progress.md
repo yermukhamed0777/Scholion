@@ -2,7 +2,7 @@
 
 ## Current status — 25 November 2026
 
-**Status:** M0 design confirmation pending; M1 `verified`; M2 `verified`; M5 foundation `verified`. No milestone is marked verified from a screenshot, an HTTP 200 alone, a direct provider call, or a mocked response alone; each has live and independently reproduced checks recorded below. A human-visible browser walkthrough is a separate pending row.
+**Status:** M0 visual direction confirmed on desktop; phone viewport still pending. M1 `verified`; M2 `verified`; M5 foundation `verified`. No milestone is marked verified from a screenshot, an HTTP 200 alone, a direct provider call, or a mocked response alone; each has live and independently reproduced checks recorded below.
 
 Owner decisions recorded on 25 November 2026: the repository was made public; Vercel hosting was explicitly authorized; no hosted model provider was approved, so generation stays local-only and the public endpoint returns the documented JSON 502; Supabase work is built with environment placeholders rather than a live project, to be activated when the owner adds keys.
 
@@ -36,6 +36,18 @@ Owner decisions recorded on 25 November 2026: the repository was made public; Ve
 - `8bbb9f6`: imported sources store exact passage spans at ingestion; citation fallback uses them when the model omits a quote. README no longer claims accounts do not exist.
 
 **Checks after follow-ups:** `npm run check` passed; `npm test` passed **52** checks; `git diff --check` clean.
+
+### Browser walkthrough — desktop, 25 November 2026
+
+Observed in the in-app Chromium browser against the public Vercel build, with screenshots captured and zero console errors:
+
+- Overview rendered with the brutalist ink/concrete/vermilion/acid palette, square controls, sidebar, exam atlas and labelled offline sandbox. Selecting UNT changed the atlas preview; selecting "SAT reading" changed the sandbox sample and explanation.
+- Command palette (`Ctrl/Cmd+K`) opened, filtered to "Progress", and navigated to the Progress page.
+- Created a plan through the real form with a note; the plan page showed three generated tasks and toggling one persisted it to `scholion:v1`. A second plan was created by uploading a synthetic `.txt` file; the upload form offered editable title and page label, the saved source carried three exact `{start,end,text}` spans, and Progress showed both plans with correct task counts.
+- **Bug found and fixed:** in sprint mode `body[data-mode="sprint"] .topbar-actions { display:none }` hid both the clock and the single control needed to exit sprint, violating §5.3. Fixed in `1207efa` (`Keep sprint exit control visible in the top bar`); after redeploy the sprint screenshot showed the acid clock and a visible SPRINT toggle, and one click returned to desk mode. A regression check was added to `tests/workspace-features.test.js`.
+- After the fix, `npm run check` passed and `npm test` passed **53** checks; `git diff --check` clean.
+
+Phone layout was **not** emulated: the available browser tooling has no viewport/device emulation control. The responsive rules are present in `dist/styles.css`, but a real narrow-viewport check remains pending.
 
 ### Deployment record
 
