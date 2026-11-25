@@ -1,0 +1,15 @@
+# Decisions — Scholion
+
+Append-only log. Add new rows at the bottom; never edit or delete an existing row. If a decision changes, append a new row that supersedes the old one and name it.
+
+| Date | Decision | Why |
+| --- | --- | --- |
+| 2026-11-25 | Do **Phase 1 + 3 + 4 + verification only**. Skip Phase 2: no licence file, no `THIRD_PARTY_NOTICES`/`CONTRIBUTING`/`CHANGELOG`/`SECURITY`, no CI workflow or badge, no repo settings change, no push. | Owner explicitly chose "Plan only" when asked. Phase 2 is marked "skip if not requested" and was not requested. |
+| 2026-11-25 | Keep the GitHub repository **public**. | It is already public (`gh repo view yermukhamed0777/Scholion` → `visibility: PUBLIC`, `isPrivate: false`) and README links to it. No visibility change requested. |
+| 2026-11-25 | **Proprietary notice** is the intended licence posture; no `LICENSE` file created in this session. | Owner chose proprietary over MIT/Apache-2.0. Phase-2 scaffolding was deferred, so the choice is recorded here for a future session. Public visibility does not grant reuse rights without a licence. |
+| 2026-11-25 | Write all `plan/` documents in **English**. | Owner chose English; existing README, `docs/PROJECT_ROADMAP.md` and progress logs are English. |
+| 2026-11-25 | Create `plan/` from scratch; do not move a root `PLAN.md`. | No root `PLAN.md` existed (`Test-Path PLAN.md` → false). Nothing was moved or overwritten. |
+| 2026-11-25 | Treat `docs/PROJECT_ROADMAP.md` and `docs/hermes-progress.md` as historical evidence, not as the active plan; contradictions go into backlog **P0-5**, not into silent edits of old logs. | Ground rule 1: treat existing files as the user's work. Append-only logs must not be rewritten. |
+| 2026-11-25 | Record `npm test` and `npm run check` as the verification baseline and explicitly state that no benchmark, lint or build script exists. | `package.json:7-12` defines only `start`, `dev`, `check`, `test`. No fabricated benchmark or build gate. Adding them is **P1-3**. |
+| 2026-11-25 | Record the Phase 1 findings as backlog items instead of fixing code in this session. | Plan-only scope. The highest-severity findings are P0-1 and P0-2; they are documented with exact `file:line` references and Done-when criteria. |
+| 2026-11-25 | Use `npm.cmd` on this host instead of `npm`. | PowerShell execution policy blocks `C:\Program Files\nodejs\npm.ps1`; `npm.cmd` works. Environment quirk, not a project change. |

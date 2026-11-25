@@ -1,0 +1,57 @@
+# Backlog — Scholion
+
+Ordered, executable tasks. IDs are stable: never renumber, only add or split (`P0-3a`, etc.). Every item has a `file:line` reference and a Done-when criterion. Status is `open` unless changed in a later session. Horizon map at the end.
+
+## P0 — short term, correctness and evidence (next sessions)
+
+| ID | Task | References | Done when | Status |
+| --- | --- | --- | --- | --- |
+| **P0-1** | Close the local-server hang for unmatched account API paths. `serve.mjs` returns after `handleAccountRequest` returns `false`; no response is written. | `scripts/serve.mjs:33-35`, `scripts/account-endpoints.mjs:58-60`, `api/account.js:11` | `GET /api/auth/unknown` against `node scripts/serve.mjs` returns a JSON 404 promptly, and a new case in `tests/` asserts it. `npm test` green. | open |
+| **P0-2** | Stop stale `localStorage` from clobbering the remote workspace after sign-in. Persist remote/migrated state to the storage key, or make `commit()` use in-memory `state` when an account is ready. | `dist/app.js:93-114,117,119,126-130,491,494,503` | A jsdom regression test signs in with remote state, writes local state first, performs one mutation, and asserts the PUT body keeps the remote entries. `npm test` green. | open |
+| **P0-3** | Align the three generation timeouts so hosted generation cannot be cut off. Choose one authoritative value; make provider < browser < Vercel `maxDuration`. | `scripts/study-endpoint.mjs:8`, `dist/app.js:706`, `vercel.json:11-14` | One declared value in one place (or three ordered constants with a test); docs updated; a test asserts the ordering. | open |
+| **P0-4** | Repair the Node engine declaration. `package.json` says `>=22`; jsdom 31 requires `^22.22.2 || ^24.15.0 || >=26.0.0`; README says both 22+ and 24.15+. | `package.json:13-15`, `package-lock.json:180`, `README.md:9,55` | `engines.node` matches the lockfile/jsdom requirement, README has one non-contradictory statement, and `npm ci` + `npm test` pass on Node 24.18.1. | open |
+| **P0-5** | Reconcile documentation contradictions: check counts 34/39/49/52/53, M2 status, stale single-question data contract, stale live-smoke status, unused hero image claim, stale next-assignment file. | `docs/PROJECT_ROADMAP.md:32,38,103,125,148,155,158,198,240`, `docs/hermes-progress.md:12,17,20,23,28,38,48`, `CHATGPT_NEXT_PROMPT.md:1,7,12,13`, `dist/app.js:351` | One current check count (53), one M2 status, data contract lists `questions`/`span`/`answers`, and `plan/` is named as the planning entry point. No "done" claim without a recorded command. | open |
+| **P0-6** | Add CI (owner authorization required — Phase 2 was deferred). Workflow: `npm ci` → `npm test` → `npm run check` → build step, Node 24 series; add badge to root README. | `package.json:7-12`, `vercel.json:4`, `.github/` (empty), `README.md:1-5` | `.github/workflows/ci.yml` exists, a push/PR triggers it, all four steps run green, and README shows the badge. | open — gated |
+| **P0-7** | Harden session and restore: add `Secure` when HTTPS, CSRF defence, refresh flow, and scope `WORKSPACE_RESTORE_TOKEN` so it cannot overwrite an arbitrary `userId`. | `scripts/account-endpoints.mjs:20-24,86-88,98-114`, `scripts/supabase.mjs:75-82` | Restore can no longer target an arbitrary user in a test; cookie flags conditional on HTTPS; a test covers sign-out failure clearing the cookie. | open |
+
+## P1 — short term, hygiene and hardening
+
+| ID | Task | References | Done when | Status |
+| --- | --- | --- | --- | --- |
+| **P1-1** | Add rate limiting to signup/login/generate/workspace/restore and bound error-message echoing to clients. | `scripts/study-endpoint.mjs:7-8,119`, `scripts/account-endpoints.mjs:26,41-44`, `scripts/supabase.mjs:49-52` | Repeated requests get a documented 429; upstream provider error bodies are not passed verbatim to clients; tests added. | open |
+| **P1-2** | Verify and document privacy behavior: no learner text in logs or client error bodies; document plaintext `localStorage` explicitly in README. | `README.md:51,78`, `dist/app.js:10,119`, `dist/study.js:503-511`, `scripts/serve.mjs:74,82` | A grep-based check in CI or a test asserts no excerpt text in server logs; README states exactly what is stored where. | open |
+| **P1-3** | Add real `lint`, `bench` and `build` npm scripts so `plan/README.md` step 6 is literal rather than a recorded absence. | `package.json:7-12`, `plan/README.md` | `npm run lint`, `npm run bench`, `npm run build` all exist and pass; `plan/README.md` no longer says they are absent. | open |
+| **P1-4** | Fix accessibility gaps: palette focus trap and `aria-activedescendant`, `--signal` usage audit, non-`:has()` focus fallback, per-element `lang` for non-English track names. | `dist/index.html:2,19-21`, `dist/app.js:638,645-658,866-890`, `dist/study.css:431-442`, `dist/learning.js:41,51,70,80,90`, `README.md:43` | Focus stays inside the open palette; active option announced; a keyboard-only test passes; README colour claim matches CSS usage. | open |
+| **P1-5** | Resolve tracked-vs-ignored prompt artifact: `CHATGPT_NEXT_PROMPT.md` is tracked while the other agent prompts are ignored. Decide whether to keep it as docs or ignore it and point `plan/` from README. | `.gitignore:14-20`, `.vercelignore:14`, `README.md:76,82`, `CHATGPT_NEXT_PROMPT.md:1,7` | Owner decision recorded in `decisions.md`; README and ignore rules agree. | open |
+
+## M1/M2 — midterm
+
+| ID | Task | References | Done when | Status |
+| --- | --- | --- | --- | --- |
+| **M1-1** | PDF import with page fidelity; "OCR needed" for unreadable files; synthetic two-page fixture first. | `docs/PROJECT_ROADMAP.md:205-210`, `dist/study.js:95-112` | A synthetic PDF imports with distinct file page index and printed label; scan-only PDF shows "OCR needed"; extracted private text is not tracked. Exit criteria in `roadmap.md` §2. | open |
+| **M1-2** | Live Supabase project with RLS, real signup/login, real backup restore, verified deletion across backups. | `docs/PROJECT_ROADMAP.md:219-223,242`, `scripts/supabase.mjs:5-104`, `docs/hermes-progress.md:30-31` | Real keys in Vercel env only; RLS blocks cross-user reads; real restore reproduces; no key material in repo. | open — owner-gated |
+| **M1-3** | Build a benchmark/eval harness for generation quality and latency; do not confuse mocks with live evidence. | `docs/PROJECT_ROADMAP.md:118-128`, `package.json:7-12` | `npm run bench` runs a labelled suite with seeded passages; output records model, source ID and latency; no learner text committed. | open |
+| **M1-4** | Catalog depth and timed practice from verified exam rules only. | `docs/PROJECT_ROADMAP.md:212-217`, `dist/learning.js:1-230`, `dist/source-registry.js:1-176` | Track fields added by data; coverage derived; timing rules documented with sources before any score conversion. | open |
+| **M2-1** | Phone/touch browser walkthrough (requires a viewport-capable browser and an owner-observed pass). | `docs/hermes-progress.md:50`, `docs/PROJECT_ROADMAP.md:126,170,241`, `dist/styles.css:932-959` | Narrow viewport recorded with keyboard and touch actions, citation rail reachable, sprint exit visible, zero console errors. | open — gated |
+| **M2-2** | Employer pilot with explicit employee/employer permission roles; personal workspaces first. | `docs/PROJECT_ROADMAP.md:225-228` | Two roles implemented and tested; owner documents what administrators may see; pilot agreement signed. | open |
+| **M2-3** | Staging and launch from a reviewed commit; domain, DNS, pricing and coverage approved by owner. | `docs/PROJECT_ROADMAP.md:230-234` | Real flow completes at the approved domain with accurate coverage; rollback path recorded. | open |
+
+## M3/M4 — long term
+
+| ID | Task | References | Done when | Status |
+| --- | --- | --- | --- | --- |
+| **M3-1** | Validate business model: choose product shape, billing boundary and target segment from real interviews, not assumptions. | `plan/strategy.md` open questions 1–3; `decisions.md` licence row | At least the proposed target number of owner-recorded interviews in `roadmap.md` §3 completed and a written pricing decision exists. | open |
+| **M3-2** | Optional on-prem / private deployment package preserving local-only generation. | `README.md:45-51`, `scripts/study-endpoint.mjs:95-100`, `plan/roadmap.md` expansion | Node server + `dist/` package starts with no hosted dependencies and passes the same test suite. | open |
+| **M4-1** | Team administration and multi-tenant controls after pilot evidence. | `docs/PROJECT_ROADMAP.md:225-228` | Role matrix documented, no implicit access to employee notes, tests for both roles. | open |
+
+## Horizon map
+
+| Horizon | IDs |
+| --- | --- |
+| Short term | P0-1 … P0-7, P1-1 … P1-5 |
+| Midterm | M1-1 … M1-4, M2-1 … M2-3 |
+| Long term | M3-1, M3-2, M4-1 |
+
+## Next-action rule
+
+Pick the lowest-numbered `open` item in P0 whose blockers are cleared. Never skip to a later horizon while an unblocked P0 item remains. Record every status change in the same commit as the work, per `plan/README.md`.

@@ -77,6 +77,10 @@ Learner data now lives under `scholion:v1`. Plans saved under the previous `alla
 
 Private books, extracted text, derived notes, credentials, and scratch files stay in `Materials/`, `tmp/`, or local ignore rules and are never committed.
 
+## Planning
+
+Long-term execution planning lives in [plan/README.md](plan/README.md): strategy, roadmap, backlog, decisions and progress. It is the active planning entry point; `docs/PROJECT_ROADMAP.md` and `docs/hermes-progress.md` remain the historical evidence record.
+
 ## Continue development
 
-Read the [project roadmap](docs/PROJECT_ROADMAP.md) first. Use [CHATGPT_NEXT_PROMPT.md](CHATGPT_NEXT_PROMPT.md) for the next paste-ready assignment, and record observed evidence in the [progress log](docs/hermes-progress.md).
+Read the [plan](plan/README.md) and the [project roadmap](docs/PROJECT_ROADMAP.md) first. Use [CHATGPT_NEXT_PROMPT.md](CHATGPT_NEXT_PROMPT.md) for the paste-ready assignment, and record observed evidence in the [progress log](docs/hermes-progress.md).
