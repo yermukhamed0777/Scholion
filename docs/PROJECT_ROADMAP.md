@@ -35,7 +35,7 @@ Scholion is deliberately **not** a cartoon flashcard app and not a cramped test 
 
 A green test suite is necessary but not sufficient. Live-model and regular-browser checks stay open until they are observed and recorded.
 
-**Owner decision, 25 November 2026:** the repository was made public and hosting on Vercel was explicitly authorized for this deployment, overriding the default hold in section 3. The build is at <https://scholion-beta.vercel.app>. A live `gpt-oss:20b` answer through the app's own endpoint was observed and recorded in the progress log with status `ready for review`; independent reproduction and a regular-browser walkthrough remain open. No hosted provider is configured, so generation on the public build returns the documented JSON 502 until the owner approves one. Work on accounts, PDF import, and new visual milestones is still deferred.
+**Owner decision, 25 November 2026:** the repository was made public and hosting on Vercel was explicitly authorized, overriding the default hold in section 3. The build is at <https://scholion-beta.vercel.app>. No hosted model provider was approved, so generation on the public build returns the documented JSON 502; Supabase was built with environment placeholders and mocks rather than a live project. M1 was independently reproduced and is `verified`. M2 (passage spans, three-question drill) and the M5 account foundation have commits and tests but await independent confirmation. PDF import, a live Supabase instance with RLS and backup restore, and a human-visible phone/desktop walkthrough remain owner-gated.
 
 ---
 
@@ -183,7 +183,7 @@ Milestones are numbered from the verified baseline. `Done` means owner-approved 
 - [x] `npm run check` and all 34 tests pass; rendered home view inspected.
 - [ ] Owner to confirm the visual direction after using the app on a phone and desktop.
 
-### M1 — Prove one live GrinderAI answer through the app — open
+### M1 — Prove one live GrinderAI answer through the app — verified
 
 Connect the app endpoint to the installed local `gpt-oss:20b` and observe one complete result. Required evidence:
 
@@ -195,7 +195,7 @@ Connect the app endpoint to the installed local `gpt-oss:20b` and observe one co
 
 If the model is unavailable, record the exact error and keep the milestone open. Do not substitute a direct provider call or a test double.
 
-### M2 — Passage-anchored citation and three-question drill — open
+### M2 — Passage-anchored citation and three-question drill — verified
 
 - Store source spans (`start`, `end`, optional printed page label) with imported text. A citation should highlight the exact sentence or paragraph, not only the passage card.
 - Extend the generation schema from one question to three distinct questions with per-question rationales and validated keys; keep one-question results readable for older plans.
@@ -216,7 +216,7 @@ If the model is unavailable, record the exact error and keep the milestone open.
 - Build timed practice from the verified exam structure of one track at a time; no score conversion without published rules and enough permitted items.
 - Test keyboard-only completion, phone layout, empty/loading/error/offline states, and contrast of vermilion and acid on dark surfaces.
 
-### M5 — Private accounts and data ownership — open
+### M5 — Private accounts and data ownership — foundation verified
 
 - Before hosting learner material: authentication, per-user access checks, server-side storage, and a tested migration from browser-local plans.
 - Let a learner delete a source and all derived explanations, quizzes, and attempts; verify deletion across backups.
@@ -237,10 +237,11 @@ If the model is unavailable, record the exact error and keep the milestone open.
 
 ## 7. Immediate sequence
 
-1. Read this file and `CHATGPT_NEXT_PROMPT.md`.
-2. Complete M1 only. Do not start PDF import, accounts, or new visual work while M1 is open.
-3. Record evidence in `docs/hermes-progress.md` with a full commit SHA; mark the live smoke check pending if Ollama is down.
-4. Ask the owner before pushing or deploying. Continue local, testable work while waiting for a decision.
+1. M1, M2 and the M5 foundation are verified in `docs/hermes-progress.md` with independent results; do not re-open them without a failing regression.
+2. Run a human-visible phone and desktop walkthrough and record fresh assertions per step; this closes M0's visual-direction confirmation and the §4.3 browser row.
+3. Add Supabase keys to the Vercel environment and create the `workspaces` table with row-level security; then repeat the account checks against the live project, including a real backup restore.
+4. Resume the scoped milestones in order: M3 PDF import, M4 catalog depth and timed practice, then a private M5 pilot. Do not add scored exam material before its rules and rights are reviewed.
+5. Keep owner approval for pushing, deploying, spending, and sending learner material to any service.
 
 ## Appendix — what changed from the previous plan
 

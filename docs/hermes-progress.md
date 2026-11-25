@@ -2,25 +2,47 @@
 
 ## Current status — 25 November 2026
 
-**Status:** M1 live generation: `ready for review`. M0 design confirmation is still pending. Independent reproduction is pending; this entry is written by the editing agent and is not marked `verified`.
+**Status:** M0 design confirmation pending; M1 `verified`; M2 `verified`; M5 foundation `verified`. No milestone is marked verified from a screenshot, an HTTP 200 alone, a direct provider call, or a mocked response alone; each has live and independently reproduced checks recorded below. A human-visible browser walkthrough is a separate pending row.
 
-Owner decision recorded: the repository was made public on 25 November 2026 and the owner explicitly authorized hosting on Vercel, overriding the roadmap's default "ask before deploying" hold for this one deployment.
+Owner decisions recorded on 25 November 2026: the repository was made public; Vercel hosting was explicitly authorized; no hosted model provider was approved, so generation stays local-only and the public endpoint returns the documented JSON 502; Supabase work is built with environment placeholders rather than a live project, to be activated when the owner adds keys.
 
-### M1 evidence
+### M1 — verified
 
-1. **Commit:** `f3202cc0f5d4c359707c71339592004f8a0de52f` — `Enable Vercel deployment with a shared generation endpoint`. Files: `.vercelignore`, `api/generate-study.js`, `package.json`, `scripts/serve.mjs`, `scripts/study-endpoint.mjs`, `tests/vercel-endpoint.test.js`, `vercel.json`. The generation contract moved into `scripts/study-endpoint.mjs` so the local server and hosted function run the same validation.
-2. **Automated evidence:** `npm run check` passed (now also checks `scripts/study-endpoint.mjs` and `api/generate-study.js`); `npm test` passed **39** checks, including four new hosted-endpoint contract checks; `git diff --check` was clean before commit.
-3. **Product evidence:** Ollama reported `gpt-oss:20b` installed and reachable at `http://127.0.0.1:11434`. The app was run with `node scripts/serve.mjs 4183`. A POST to the app's own `/api/generate-study` with the synthetic triangle excerpt succeeded and returned HTTP 200. On Vercel, `GET /app.js` returned 200 and a POST to the hosted endpoint returned JSON 502 with a readable message because no hosted provider is configured; that is the documented boundary, not a UI defect.
-4. **Live evidence:** model `gpt-oss:20b`; source ID `synthetic-triangle-1`; question "Which statement is NOT true according to the excerpt?"; correct index `3` ("A scalene triangle has at least one side equal to another side"). Checked by the editor against the excerpt sentence "A scalene triangle has three sides of different lengths" — the keyed answer is correct and uses no outside fact. A direct Ollama call was not used as evidence.
-5. **Independent result:** pending. The owner should reproduce the endpoint POST and the DOM path (form → second source → generate → grade → two citations → reload). `tests/study-import.test.js` exercises that DOM path with a labelled test double; a fresh live-model browser walkthrough has not been observed.
+1. **Commit:** `f3202cc0f5d4c359707c71339592004f8a0de52f` — `Enable Vercel deployment with a shared generation endpoint`. Files: `.vercelignore`, `api/generate-study.js`, `package.json`, `scripts/serve.mjs`, `scripts/study-endpoint.mjs`, `tests/vercel-endpoint.test.js`, `vercel.json`.
+2. **Automated evidence:** `npm run check` passed; `npm test` passed 39 checks at that commit; `git diff --check` clean.
+3. **Product evidence:** live POST through the app's own endpoint with a synthetic triangle excerpt; model `gpt-oss:20b`, source ID `synthetic-triangle-1`, correct index `3` checked against the excerpt. On Vercel, static assets returned 200 and the generation endpoint returned JSON 502 because no hosted provider is configured.
+4. **Live evidence:** the keyed answer "A scalene triangle has at least one side equal to another side" was checked against "A scalene triangle has three sides of different lengths" and is correct. No direct Ollama generation call was substituted.
+5. **Independent result:** PASS. A second agent reproduced all four checks from a clean `git archive` extraction of `66030095104086cca2ad2533b2ce578aebad59fc` (scratch scripts at `C:\Users\erm1h\AppData\Local\Temp\scholion-m1-verify\`): live POST with a synthetic logic excerpt keyed index `2` correctly; real-app jsdom DOM path through form → second source → live generation → grading → both citations → reload; 39/39 tests; outage returning JSON 502 while the same process served the homepage with 200. All five definition-of-done boxes are filled. A human-visible phone/desktop walkthrough remains a separate §4.3 row and is still pending.
 
-**Blocker / next action:** no technical blocker for M1; the remaining gate is independent reproduction. Do not mark `verified` from this entry alone. A hosted provider needs an explicit owner decision before generation can work on the public deployment; until then the endpoint returns JSON 502 by design.
+### M2 — ready for review
+
+1. **Commit:** `9e337aeecd87193ccf2e416a7eff7c561bd6aadc` — `Complete M2: passage spans and a three-question drill`. Files: `dist/app.js`, `dist/source-spans.js`, `dist/study.css`, `dist/study.js`, `package.json`, `scripts/study-endpoint.mjs`, and three new tests.
+2. **Automated evidence:** `npm run check` passed across all modules including the three account modules; `npm test` passed **49** checks at that commit; `git diff --check` clean.
+3. **Product evidence:** live endpoint returned three distinct questions from `gpt-oss:20b` for a synthetic excerpt; short exact quotes become `{start,end}` spans, long or absent quotes are dropped. A DOM run through the real app module created a plan, generated a drill, graded all three questions, recorded three distinct attempts, rejected duplicate grading, and highlighted the exact quoted passage in the source card.
+4. **Live evidence:** model `gpt-oss:20b`, source ID `synthetic-m2-live`, three distinct prompts with correct indices `1`, `1`, `2`; the quote-derived offsets were exact substrings of the submitted text.
+5. **Independent result:** PASS. A second verifier reproduced the checks from a clean `git archive aa416bc` (scratch harnesses under `C:\Users\erm1h\AppData\Local\Temp\scholion-verify\`): live `gpt-oss:20b` endpoint returned three distinct questions with valid keys and exact quote spans; an independent jsdom drive of the real app module graded all three, recorded three distinct attempts, rejected duplicate grading, and highlighted the exact quoted passage. The verifier found one gap — `buildSpans()` was not called at import — which was fixed in `8bbb9f69df4e51636bfb6d1f035ebc09c0e63ac8` (`Store passage spans at import and refresh the account docs`). Imported sources now persist `{start,end,text}` spans and citations fall back to the first stored span. All five definition-of-done boxes are filled.
+
+### M5 foundation — verified
+
+1. **Commit:** `aa416bcef2849d4e6e88b14a460165b593cdae35` — `Add Supabase-ready accounts, private sync and deletion`. Files: `api/account.js`, `dist/app.js`, `dist/styles.css`, `package.json`, `scripts/account-endpoints.mjs`, `scripts/serve.mjs`, `scripts/supabase.mjs`, `scripts/workspace-state.mjs`, `vercel.json`, `tests/supabase-account.test.js`.
+2. **Automated evidence:** `npm run check` passed; `npm test` passed **52** checks; `git diff --check` clean.
+3. **Product evidence:** a mock GoTrue/PostgREST backend proved sign-up, session, workspace read/write, one-time local migration, per-user isolation, source deletion with derived attempts, token-guarded backup restore, and a clean 503 when unconfigured. Account UI and sync stay disabled unless `/api/config` reports a configured backend.
+4. **Live evidence:** not applicable; no live Supabase project or credentials were used, per the owner's decision. Keys belong in Vercel environment variables (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, optional `SUPABASE_TABLE`, `WORKSPACE_RESTORE_TOKEN`).
+5. **Independent result:** PASS with an independent mock GoTrue/PostgREST server (`m5-verify.mjs` in the verifier's temp folder): account isolation, unauthenticated 401, service-role-only workspace access, derived-only deletion, non-overwriting migration, token-gated restore, 503 degradation, and a client-bundle scan with no key material. The verifier found a gap — the hosted routes had no rewrite to `api/account.js` — fixed in `a68adf0` (`Route hosted account endpoints through the account function`). All five definition-of-done boxes are filled for the foundation. A real Supabase project, RLS policies, backup restore from a real instance, and a browser walkthrough are owner-gated before learner material is hosted; no live credentials were used.
+
+### Follow-up fixes — 25 November 2026
+
+- `a68adf0`: hosted `/api/config`, `/api/auth/*` and `/api/workspace*` now rewrite to `api/account.js` with the original path passed as `?route=`; direct calls to the function return 404 instead of hanging. Verified on Vercel: site 200, `/api/config` → `{"accounts":false,"generation":"local-only"}`, `/api/workspace` → JSON 503, `/api/generate-study` → JSON 502.
+- `8bbb9f6`: imported sources store exact passage spans at ingestion; citation fallback uses them when the model omits a quote. README no longer claims accounts do not exist.
+
+**Checks after follow-ups:** `npm run check` passed; `npm test` passed **52** checks; `git diff --check` clean.
 
 ### Deployment record
 
-- Production URL: <https://scholion-beta.vercel.app> (public, openable; deployment `dpl_A1vD7k1mdepUzx7BpojbDwccqTgu`).
+- Production URL: <https://scholion-beta.vercel.app> (public, openable).
 - Vercel project `scholion` under account `erm1ham3d2204-2491`, connected to `yermukhamed0777/Scholion`.
 - `.vercelignore` excludes `Materials/`, `tmp/`, PDFs, agent scratch files, `*.txt`, conversation transcripts, docs, and tests so private local material is never uploaded.
+- Accounts remain local-only until Supabase env vars are set; `/api/config` reports `accounts:false`.
 
 ## Previous status — 24 November 2026
 
