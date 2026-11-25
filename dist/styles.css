@@ -947,9 +947,13 @@ input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select {
 .focus-toggle[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--ink); }
 .focus-clock { color: var(--signal); font: 600 .82rem/1 var(--mono); }
 body[data-mode="sprint"] .sidebar,
-body[data-mode="sprint"] .topbar-actions,
 body[data-mode="sprint"] .dashboard-lower,
-body[data-mode="sprint"] .app-footer { display: none; }
+body[data-mode="sprint"] .app-footer,
+body[data-mode="sprint"] .mobile-menu { display: none; }
+/* Sprint removes navigation, not the way back: keep the clock and the one
+   control that exits the sprint visible in the top bar. */
+body[data-mode="sprint"] .topbar-actions { margin-inline-start: auto; }
+body[data-mode="sprint"] .topbar-actions > :not(.focus-clock):not([data-action="toggle-focus"]) { display: none; }
 body[data-mode="sprint"] .app-shell { grid-template-columns: minmax(0, 1fr); }
 body[data-mode="sprint"] .topbar { border-block-end: 3px solid var(--accent); }
 body[data-mode="sprint"] .main-content { max-width: 980px; padding-block-start: 18px; }

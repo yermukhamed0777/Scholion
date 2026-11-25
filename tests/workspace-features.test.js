@@ -82,6 +82,14 @@ test('focus mode persists and restores the calm desk atmosphere', async t => {
   assert.equal(window.localStorage.getItem('scholion:mode'), 'desk');
 });
 
+test('sprint mode keeps the clock and a single exit control visible', async () => {
+  const css = await readFile(new URL('../dist/styles.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(css, /body\[data-mode="sprint"\]\s+\.topbar-actions,\s*\n?\s*body\[data-mode="sprint"\]/,
+    'The whole top-bar actions group must not be hidden in sprint mode');
+  assert.match(css, /body\[data-mode="sprint"\]\s+\.topbar-actions\s*>\s*:not\(\.focus-clock\):not\(\[data-action="toggle-focus"]\)\s*\{\s*display:\s*none/);
+  assert.match(css, /body\[data-mode="sprint"\]\s+\.mobile-menu\s*\{\s*display:\s*none/);
+});
+
 test('the command palette finds a track and navigates with Enter', async t => {
   isolateGlobals(t);
   const window = await openWorkspace(t, '#/', 'command');
