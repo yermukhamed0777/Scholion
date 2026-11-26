@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { extname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveServerConfig } from './server-config.js';
+import { probeOllama } from './generation-capability.js';
 import { generateStudy } from './study-endpoint.mjs';
 import { handleAccountRequest } from './account-endpoints.mjs';
 
@@ -31,7 +32,11 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (pathname === '/api/config' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/workspace')) {
-    await handleAccountRequest(pathname, request, response);
+    const handled = await handleAccountRequest(pathname, request, response, process.env, { probeGeneration: probeOllama });
+    if (!handled) {
+      response.writeHead(404, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: 'Not found' }));
+    }
     return;
   }
   if (request.method !== 'GET' && request.method !== 'HEAD') {

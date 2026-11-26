@@ -165,7 +165,8 @@ function generatedMaterial(entry) {
   // One-question results keep the original mark-up and grading path so older
   // saved plans and their regression tests stay readable.
   if (questions.length === 1) {
-    const { answer, question } = result;
+    const { answer } = result;
+    const question = questions[0];
     return `<section class="generated-material" aria-labelledby="generated-material-heading">
       ${heading}
       <form class="study-form" data-study-form="generated-quiz"
@@ -227,6 +228,7 @@ function studyPlanPage(entry) {
             <button class="button button-primary" type="submit">${icon('sparkles', 18)} Generate study material</button>
           </div>
           <p class="muted" role="status" data-generation-status hidden>Generating study material…</p>
+          <p class="muted" role="status" data-generation-unavailable hidden></p>
         </form>` : ''}
         ${generatedMaterial(entry)}
       </aside>
@@ -512,7 +514,14 @@ async function addStudyPlan(form, { commit, navigate, notify }) {
       };
     }));
     if (sources.some(({ text }) => !text || text.includes('\0'))) {
+      submitButton.disabled = false;
       showFormError(form, 'Choose files that contain readable text.', 'sources');
+      return;
+    }
+    const fingerprints = sources.map(({ text }) => text.replace(/\s+/g, ' ').trim().toLowerCase());
+    if (new Set(fingerprints).size !== fingerprints.length) {
+      submitButton.disabled = false;
+      showFormError(form, 'Duplicate material detected. Attach each passage only once.', 'sources');
       return;
     }
     if (!form.isConnected) return;

@@ -96,3 +96,12 @@ Rows are the work sessions recorded by `git log -20 --format='%h|%H|%ad|%s'` on 
 | 2026-11-23 | `87cc4f6` | Document local GrinderAI setup and verified milestones. | Not separately recorded. |
 | 2026-11-23 | `339f9b1` | Test selected-source generation and quiz persistence. | Earlier suite (`docs/hermes-progress.md:94`). |
 | 2026-11-23 | `4bac9b9` | Save generated study material, citations and grading progress. | Earlier suite (`docs/hermes-progress.md:94`). |
+
+## Status snapshot — 2026-11-26 (appended, supersedes earlier numbers)
+
+| Field | Value |
+| --- | --- |
+| Stage | Final AI architecture / study integrity sprint. Local changes complete and verified; **not deployed** (no push authorized). |
+| Latest measured numbers | `npm.cmd test` **63 pass / 0 fail** (5832.7765 ms); `npm.cmd run check` exit 0; live `npm.cmd run demo:local` exit 0 with `gpt-oss:20b`, 3 grounded questions and structural/citation PASS; public origin `/` 200, `/api/config` stale `{"accounts":false,"generation":"local-only"}`, generation POST JSON 502. |
+| Next action | Complete the P0-2 sign-in mutation regression test, then seek explicit authorization to push/deploy so the public build shows the truthful capability state. |
+| Session history addition | 2026-11-26: server-computed generation capability, disabled/labelled generate control, timeout ordering, orphan deletion cascade, duplicate-upload rejection, prompt-injection and timeout regressions, capability matrix, reproducible local demo. Exact commands and results in `progress.md`. |

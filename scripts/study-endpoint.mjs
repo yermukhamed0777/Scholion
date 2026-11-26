@@ -5,7 +5,12 @@
 import { spanForQuote } from '../dist/source-spans.js';
 
 const studyRequestLimit = 2 * 1024 * 1024;
-const providerTimeout = 90_000;
+// Provider < Vercel maxDuration (60 s) < browser timeout. Overridable only for
+// deterministic tests; the hosted contract stays within the platform cap.
+const configuredTimeout = Number(process.env.GENERATION_TIMEOUT_MS);
+export const providerTimeout = Number.isFinite(configuredTimeout) && configuredTimeout > 0
+  ? configuredTimeout
+  : 45_000;
 const questionSchema = {
   type: 'object',
   additionalProperties: false,

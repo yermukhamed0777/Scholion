@@ -53,6 +53,14 @@ async function openWorkspace(t, hash, instance, savedState) {
     const value = key === 'window' ? window : window[key];
     Object.defineProperty(globalThis, key, { configurable: true, value });
   }
+  // Enable the app's config path and report a local Ollama capability so the
+  // drill test exercises real generation, not the public-demo gate.
+  const nativeFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => url === '/api/config'
+    ? Response.json({ accounts: false, generation: 'local-ollama', generationStatus: { status: 'available', kind: 'local-ollama', reason: 'Local Ollama is configured for GrinderAI.' } })
+    : (globalThis.__scholionFetch ? globalThis.__scholionFetch(url, options) : nativeFetch(url, options));
+  t.after(() => { globalThis.fetch = nativeFetch; delete globalThis.__scholionFetch; });
+  window.fetch = () => {};
   const app = new URL('../dist/app.js', import.meta.url);
   app.searchParams.set('drill-test', instance);
   await import(app.href);
@@ -103,11 +111,12 @@ test('a three-question drill grades every question once and highlights the cited
   const readState = () => JSON.parse(window.localStorage.getItem(storageKey));
   const source = readState().entries[0].sources[0];
   const payload = { ...result, sourceId: source.id };
-  const request = t.mock.method(globalThis, 'fetch', async () => Response.json(payload));
+  const calls = [];
+  globalThis.__scholionFetch = async (url, options) => { calls.push([url, options]); return Response.json(payload); };
   const generate = document.querySelector('form[data-study-form="generate"]');
   generate.querySelector('button[type="submit"]').click();
   await waitForElement(window, 'form[data-study-form="generated-drill"]');
-  assert.equal(request.mock.callCount(), 1);
+  assert.equal(calls.filter(call => call[0] === '/api/generate-study').length, 1);
 
   const drill = document.querySelector('form[data-study-form="generated-drill"]');
   assert.equal(drill.querySelectorAll('fieldset.study-choices').length, 3);
@@ -145,5 +154,5 @@ test('a three-question drill grades every question once and highlights the cited
   const remounted = await openWorkspace(t, window.location.hash, `${Date.now()}-reload`, window.localStorage.getItem(storageKey));
   assert.equal(remounted.document.querySelectorAll('.generated-question-feedback').length, 3);
   assert.equal(JSON.parse(remounted.localStorage.getItem(storageKey)).attempts.length, 3);
-  assert.equal(request.mock.callCount(), 1, 'Restoring a saved drill must not regenerate it');
+  assert.equal(calls.length, 1, 'Restoring a saved drill must not regenerate it');
 });

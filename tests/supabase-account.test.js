@@ -129,7 +129,10 @@ test('account endpoints keep workspaces private, migrate once, delete derived da
 
   const config = await (await request(origin, '/api/config')).json();
   assert.equal(config.accounts, true);
-  assert.equal(config.generation, 'local-only');
+  // Accounts and AI availability are independent server-reported facts.
+  assert.equal(config.generation, 'local-ollama');
+  assert.equal(config.generationStatus.status, 'available');
+  assert.equal(config.generationStatus.kind, 'local-ollama');
 
   const signupA = await request(origin, '/api/auth/signup', { method: 'POST', body: { email: 'a@example.com', password: 'password123' } });
   assert.equal(signupA.status, 200);

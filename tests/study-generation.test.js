@@ -19,6 +19,15 @@ async function openWorkspace(t, hash, instance, savedState) {
     Object.defineProperty(globalThis, key, { configurable: true, value });
   }
 
+  // The real app only reads /api/config when window.fetch exists. This harness
+  // supplies a local-Ollama capability so generation tests exercise the app's
+  // real generation path rather than the public-demo unavailability gate.
+  const nativeFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => url === '/api/config'
+    ? Response.json({ accounts: false, generation: 'local-ollama', generationStatus: { status: 'available', kind: 'local-ollama', reason: 'Local Ollama is configured for GrinderAI.' } })
+    : (globalThis.__scholionFetch ? globalThis.__scholionFetch(url, options) : nativeFetch(url, options));
+  t.after(() => { globalThis.fetch = nativeFetch; delete globalThis.__scholionFetch; });
+  window.fetch = () => {};
   const app = new URL('../dist/app.js', import.meta.url);
   app.searchParams.set('generation-test', instance);
   await import(app.href);
@@ -100,14 +109,16 @@ test('study generation uses the selected source and preserves its graded answer 
       rationale: 'The excerpt requires both statements to be true.',
     },
   };
-  const request = t.mock.method(globalThis, 'fetch', async () => Response.json(result));
+  const calls = [];
+  globalThis.__scholionFetch = async (url, options) => { calls.push([url, options]); return Response.json(result); };
   const generate = document.querySelector('form[data-study-form="generate"]');
   generate.elements.namedItem('sourceId').value = source.id;
   generate.querySelector('button[type="submit"]').click();
   const quiz = await waitForElement(window, 'form[data-study-form="generated-quiz"]');
 
-  assert.equal(request.mock.callCount(), 1);
-  const [path, options] = request.mock.calls[0].arguments;
+  const generateCalls = calls.filter(call => call[0] === '/api/generate-study');
+  assert.equal(generateCalls.length, 1);
+  const [path, options] = generateCalls[0];
   assert.equal(path, '/api/generate-study');
   assert.equal(options.method, 'POST');
   const body = JSON.parse(options.body);
@@ -143,7 +154,7 @@ test('study generation uses the selected source and preserves its graded answer 
   assert.match(remounted.document.querySelector('.generated-question-feedback').textContent, /Correct/);
   checkGeneratedCitations(remounted.document, source, otherSource);
   assert.equal(JSON.parse(remounted.localStorage.getItem(storageKey)).attempts.length, 1);
-  assert.equal(request.mock.callCount(), 1, 'Restoring a saved plan must not generate a fresh question');
+  assert.equal(calls.length, 1, 'Restoring a saved plan must not generate a fresh question');
 
   const progressNavigated = once(remounted, 'hashchange');
   remounted.location.hash = '#/progress';

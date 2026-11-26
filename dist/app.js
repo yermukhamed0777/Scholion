@@ -59,6 +59,9 @@ let commandIndex = 0;
 // Accounts stay off until /api/config confirms a configured backend. Local
 // plans and the offline sandbox work exactly as before when it is absent.
 const account = { configured: false, user: null, ready: false, mode: 'login' };
+// AI availability is reported by the server, never inferred in the browser.
+// Until /api/config answers, the truthful state is "unavailable".
+let generation = { status: 'unavailable', kind: 'none', reason: 'AI generation availability is not known yet.' };
 
 const sandboxSamples = {
   logic: {
@@ -479,6 +482,14 @@ async function initAccount() {
     const configResponse = await fetch('/api/config');
     if (!configResponse.ok) return;
     const config = await configResponse.json();
+    if (config?.generationStatus && typeof config.generationStatus === 'object') {
+      generation = config.generationStatus;
+    } else if (config?.generation === 'local-ollama') {
+      generation = { status: 'available', kind: 'local-ollama', reason: 'Local Ollama is configured for GrinderAI.' };
+    } else {
+      generation = { status: 'unavailable', kind: 'none', reason: 'This deployment does not report AI generation availability.' };
+    }
+    render();
     if (!config.accounts) return;
     account.configured = true;
     const sessionResponse = await fetch('/api/auth/session');
@@ -492,6 +503,9 @@ async function initAccount() {
         const local = readState(state);
         if (hasRemote) {
           state = remote.state;
+          // Keep the browser copy in step with the account, otherwise the next
+          // commit() re-reads stale localStorage and overwrites the account.
+          try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch { /* local copy is optional */ }
         } else if (local.entries.length || local.attempts.length) {
           const migratedResponse = await fetch('/api/workspace/migrate', {
             method: 'POST',
@@ -500,7 +514,10 @@ async function initAccount() {
           });
           if (migratedResponse.ok) {
             const migrated = await migratedResponse.json();
-            if (migrated?.state) state = migrated.state;
+            if (migrated?.state) {
+              state = migrated.state;
+              try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch { /* local copy is optional */ }
+            }
           }
         }
       }
@@ -595,7 +612,7 @@ function render({ focus = false } = {}) {
           <button class="focus-toggle" type="button" data-action="toggle-focus" aria-pressed="${focusMode}" aria-label="Toggle exam sprint mode">${icon('clock', 15)}<span data-focus-label>${focusMode ? 'Sprint' : 'Desk'}</span></button>
           <button class="focus-toggle" type="button" data-action="open-command" aria-label="Open quick switcher">${icon('search', 15)}<span>Ctrl K</span></button>
           <a class="topbar-action" href="#/catalog">${icon('search', 18)}<span>Find a track</span></a>
-          <span class="local-badge">Local preview</span>
+          <span class="local-badge" data-capability-badge>${generation.status === 'available' ? 'Local · GrinderAI' : (account.configured ? 'Hosted workspace' : 'Demo · no AI')}</span>
         </div>
       </header>
       <main class="main-content" id="main-content" tabindex="-1">${pageContent(route)}</main>
@@ -671,21 +688,33 @@ function syncGenerationForm() {
   const form = root.querySelector('form[data-study-form="generate"]');
   if (!form) return;
   const generating = generatingPlans.has(form.dataset.entryId);
+  const unavailable = generation.status !== 'available';
   form.setAttribute('aria-busy', String(generating));
-  form.querySelector('button[type="submit"]').disabled = generating;
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = generating || unavailable;
+  button.title = unavailable ? (generation.reason || 'AI generation is not available here.') : '';
   form.querySelector('select[name="sourceId"]').disabled = generating;
   form.querySelector('[data-generation-status]').hidden = !generating;
+  const notice = form.querySelector('[data-generation-unavailable]');
+  if (notice) {
+    notice.hidden = !unavailable;
+    notice.textContent = unavailable ? (generation.reason || 'AI generation is not available here.') : '';
+  }
 }
 
 function isGeneratedStudy(value, sourceId) {
   const questions = Array.isArray(value?.questions) && value.questions.length
     ? value.questions
     : [value?.question];
-  const validQuestion = item => typeof item?.prompt === 'string' && typeof item.rationale === 'string' &&
-    Array.isArray(item.choices) && item.choices.length === 4 && item.choices.every(choice => typeof choice === 'string') &&
+  const validQuestion = item => typeof item?.prompt === 'string' && item.prompt.trim() !== '' &&
+    typeof item.rationale === 'string' && item.rationale.trim() !== '' &&
+    Array.isArray(item.choices) && item.choices.length === 4 &&
+    item.choices.every(choice => typeof choice === 'string' && choice.trim() !== '') &&
+    new Set(item.choices.map(choice => choice.trim().toLowerCase())).size === 4 &&
     Number.isInteger(item.correctIndex) && item.correctIndex >= 0 && item.correctIndex < item.choices.length;
   return value?.sourceId === sourceId && typeof value.model === 'string' && typeof value.explanation === 'string' &&
-    questions.length <= 3 && questions.every(validQuestion);
+    validQuestion(value?.question) &&
+    (questions.length === 1 || (questions.length <= 3 && questions.every(validQuestion)));
 }
 
 async function generateStudy(form) {
@@ -693,6 +722,10 @@ async function generateStudy(form) {
   const entry = readState(state).entries.find(item => item.id === entryId);
   const sourceId = form.elements.namedItem('sourceId').value;
   const source = entry?.sources.find(item => item.id === sourceId);
+  if (generation.status !== 'available') {
+    notify(generation.reason || 'AI generation is not available here.');
+    return;
+  }
   if (!source || generatingPlans.has(entryId)) return;
 
   generatingPlans.add(entryId);
@@ -703,7 +736,7 @@ async function generateStudy(form) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sourceId, title: source.title || source.name, pages: source.pages, text: source.text }),
-      signal: AbortSignal.timeout(95_000),
+      signal: AbortSignal.timeout(75_000),
     });
     const result = await response.json();
     if (!response.ok) {

@@ -81,6 +81,8 @@ Private books, extracted text, derived notes, credentials, and scratch files sta
 
 Long-term execution planning lives in [plan/README.md](plan/README.md): strategy, roadmap, backlog, decisions and progress. It is the active planning entry point; `docs/PROJECT_ROADMAP.md` and `docs/hermes-progress.md` remain the historical evidence record.
 
+The [capability matrix](docs/CAPABILITY_MATRIX.md) distinguishes what is verified locally, what is public without configuration, and what depends on optional hosted configuration. Public generation is unavailable until an owner-approved provider is configured; the generate control reports that state instead of failing after a click.
+
 ## Continue development
 
 Read the [plan](plan/README.md) and the [project roadmap](docs/PROJECT_ROADMAP.md) first. Use [CHATGPT_NEXT_PROMPT.md](CHATGPT_NEXT_PROMPT.md) for the paste-ready assignment, and record observed evidence in the [progress log](docs/hermes-progress.md).

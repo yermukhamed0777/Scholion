@@ -2,6 +2,7 @@
 // browser only ever receives an HttpOnly session cookie and its own data.
 
 import { sendError, sendJson } from './study-endpoint.mjs';
+import { resolveGenerationCapability } from './generation-capability.js';
 import { deleteSourceFromWorkspace, emptyWorkspace, isValidWorkspace } from './workspace-state.mjs';
 import { readSupabaseConfig, readWorkspace, sessionUser, signIn, signOut, signUp, writeWorkspace } from './supabase.mjs';
 
@@ -43,7 +44,7 @@ function replyError(response, error) {
   sendError(response, status, error?.message || 'The account request could not be completed.');
 }
 
-export async function handleAccountRequest(pathname, request, response, env = process.env) {
+export async function handleAccountRequest(pathname, request, response, env = process.env, dependencies = {}) {
   const config = readSupabaseConfig(env);
   const configured = () => {
     if (!config) throw Object.assign(new Error('Accounts are not configured for this deployment.'), { status: 503 });
@@ -51,7 +52,12 @@ export async function handleAccountRequest(pathname, request, response, env = pr
   };
 
   if (pathname === '/api/config') {
-    sendJson(response, 200, { accounts: Boolean(config), generation: 'local-only' });
+    const generationStatus = await resolveGenerationCapability(env, dependencies.probeGeneration || null);
+    sendJson(response, 200, {
+      accounts: Boolean(config),
+      generation: generationStatus.kind,
+      generationStatus,
+    });
     return true;
   }
 

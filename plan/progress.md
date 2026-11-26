@@ -74,3 +74,37 @@ No CI exists, so there is no CI run to confirm. Push was deliberately not perfor
 - Authorization / owner gates: **P0-6** (CI), **P0-7** (restore threat model), **P1-5** (prompt-artifact policy), **M1-2** (live Supabase keys), **M2-1** (phone walkthrough), **M2-2** (pilot), **M2-3** (launch/domain/pricing).
 - Publish scaffold still absent by design: licence, third-party notices, contributing, changelog, security policy, CI badge — future Phase 2 only.
 - Status snapshot and session-history table in `strategy.md` reflect this session's measured numbers and commit.
+
+## 2026-11-26 — Final AI architecture and study integrity sprint
+
+**Scope.** Three parallel read-only audits (architecture/availability, source integrity, workspace reliability) plus implementation of verified defects only. No new exam tracks, no redesign, no licence/visibility change, no push, no hosted provider, no purchase. Local Ollama was started on loopback for the reproducible demo.
+
+**Exactly what changed.**
+- `scripts/generation-capability.js` (new): pure resolver plus optional loopback probe; returns status/kind/model/public-safe reason and never a URL or key.
+- `scripts/account-endpoints.mjs`: `/api/config` now returns `generation` (kind) and `generationStatus`; accounts and AI availability are independent.
+- `scripts/serve.mjs` / `api/account.js`: local runtime probes Ollama; hosted runtime is explicitly marked unavailable; unmatched local API paths now return JSON 404 (P0-1).
+- `dist/app.js` / `dist/study.js`: capability state, truthful badge, disabled generate button with visible reason, request guard; remote/migrated state written to `scholion:v1` (P0-2 fix), browser timeout 75 s, stricter generated-study validation, no crash when only `questions` is present.
+- `scripts/study-endpoint.mjs`: provider timeout 45 s with `GENERATION_TIMEOUT_MS` override; ordering verified by test (P0-3).
+- `scripts/workspace-state.mjs`: deletion cascade now removes orphaned generated study and derived attempts.
+- `dist/study.js`: duplicate attachments rejected before commit.
+- `scripts/demo-local.mjs` (new) and `npm run demo:local`: reproducible non-sensitive `gpt-oss:20b` demo through the app endpoint.
+- `docs/CAPABILITY_MATRIX.md` (new), linked from README; `plan/backlog.md` statuses P0-1/P0-3 Done, P0-2 in progress; `plan/decisions.md` appended.
+- Tests added: `tests/generation-availability.test.js`; `tests/source-integrity.test.js`; harness updates in `tests/study-generation.test.js` and `tests/study-drill.test.js` to supply an explicit local capability before generation.
+
+**Exact commands and results.**
+| Command | Result |
+| --- | --- |
+| `node --version` / `npm.cmd --version` | `v24.18.1` / `11.16.0` |
+| `git status --short --branch` at start | `## main...origin/main [ahead 1]` |
+| `curl.exe --max-time 5 http://127.0.0.1:11434/api/tags` | initially exit 7, HTTP 000 (Ollama stopped) |
+| Ollama started on loopback; same probe | HTTP 200, `gpt-oss:20b` present |
+| `npm.cmd run check` | exit 0 before and after the changes |
+| `npm.cmd test` (final) | **63 tests, 63 pass, 0 fail**, 5832.7765 ms |
+| `node --test tests/generation-availability.test.js tests/source-integrity.test.js` | **10 tests, 10 pass, 0 fail** (after adding timeout-ordering and local-404 regressions) |
+| `npm.cmd run demo:local` (first run) | HTTP 504, model cold start exceeded 45 s; local override added |
+| `npm.cmd run demo:local` (final) | model `gpt-oss:20b`, source `demo-synthetic-triangles`, 3 questions; keyed answers Equilateral / Isosceles / Scalene; `Structural checks: PASS`, `Citation checks: PASS`, exit 0 |
+| `curl.exe -sS https://scholion-beta.vercel.app/api/config` | `{"accounts":false,"generation":"local-only"}` — current public build is stale; no `generationStatus` |
+| `curl.exe -sS -X POST ... /api/generate-study` | JSON 502 with the documented provider message |
+| `curl.exe -sS -o NUL -w '%{http_code}' https://scholion-beta.vercel.app/` | `200` |
+
+**What remains open (mapped to backlog).** P0-2 still needs the full sign-in mutation regression test; P0-4 (engine declaration), P0-5 (doc contradictions), P0-6 (CI, gated), P0-7 (restore threat model, owner decision) remain open. Human-only: live Supabase/RLS/real restore (M1-2), phone/touch walkthrough (M2-1), student pilot (M2-2), launch/domain/pricing (M2-3), and educational checking of every model answer. The public origin has not received this commit; no push was authorized.

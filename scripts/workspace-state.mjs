@@ -17,10 +17,12 @@ export function deleteSourceFromWorkspace(state, sourceId) {
   if (!isValidWorkspace(state) || typeof sourceId !== 'string') return state;
   let removedGenerationIds = [];
   const entries = state.entries.map((entry) => {
-    if (!entry.sources.some((source) => source.id === sourceId)) return entry;
     const sources = entry.sources.filter((source) => source.id !== sourceId);
     const { generatedStudy, ...rest } = entry;
-    const removed = generatedStudy?.sourceId === sourceId;
+    // Remove generated material when its source was deleted, and also when a
+    // stale/restored entry already points at a source that is not attached.
+    const removed = Boolean(generatedStudy &&
+      (generatedStudy.sourceId === sourceId || !sources.some((source) => source.id === generatedStudy.sourceId)));
     if (removed && generatedStudy?.id) removedGenerationIds.push(generatedStudy.id);
     return {
       ...rest,
