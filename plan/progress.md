@@ -150,3 +150,21 @@ No CI exists, so there is no CI run to confirm. Push was deliberately not perfor
 | `git diff --check` | exit 0 (only LF→CRLF autocrlf warnings on Windows) |
 
 **What remains open (mapped to backlog).** All P0 and P1 backlog items are Done locally. Remote CI result must be confirmed after the reviewed push. Owner/human gates remain: live Supabase project with RLS and real restore (M1-2), phone/touch walkthrough (M2-1), employer pilot (M2-2), staging and launch/domain/pricing (M2-3), licence decision, and educational checking of every model answer. Hosted AI and live Supabase are deliberately unavailable and untested; no credentials or private material are tracked.
+
+## 2026-11-28 — Publication and remote CI confirmation
+
+**Exactly what changed.** After the green local gates, commit `4f5041b` was pushed with the two earlier local commits (`15e347a`, `ec2ae01`) preserved. The first CI run (`46153164780`) failed only at the lint step: `scripts/lint.mjs` built Windows paths with `join()`, so its `startsWith('scripts/')` filter matched on Linux CI but not on the Windows authoring host, where the privacy rule was silently skipped. Commit `fae1379` normalised path separators and limited the no-log rule to the four request-handling server modules; tooling scripts are allowed to print their own results. `plan/backlog.md` now records the observed remote run.
+
+**Exact commands and results.**
+
+| Command | Result |
+| --- | --- |
+| `git push origin main` | `44c36bd..4f5041b main -> main`; `git status --short --branch` → `## main...origin/main`; all three local commits published |
+| `gh run list --workflow=ci.yml --limit=3` | run `46153164780` (commit `4f5041b`) `failure`; run `46153307737` (commit `fae1379`) `in_progress` |
+| `gh run view 46153164780 --log-failed` | lint failure listed only tooling `console` calls (`bench.mjs`, `build.mjs`, `demo-local.mjs`, `lint.mjs`); no test or build failures |
+| `npm.cmd run lint` (after fix) | `Lint passed: 41 JavaScript files checked; browser bundles carry no server secrets.` |
+| `npm.cmd test` (after fix) | 75 tests, 75 pass, 0 fail |
+| `git commit -m "Make lint path matching cross-platform for CI"` / `git push origin main` | `4f5041b..fae1379 main -> main`; working tree clean |
+| `gh run watch 46153307737 --exit-status --interval 10` | **success** — checkout, Node 24.18 setup, `npm ci`, `npm test`, `npm run check`, lint and build all green in 27 s. Only annotation: the standard Node 20 action-runner deprecation notice |
+
+**What remains open.** Owner/human gates only: live Supabase with RLS and real restore (M1-2), phone/touch walkthrough (M2-1), employer pilot (M2-2), staging/launch/domain/pricing (M2-3), licence decision and educational checking of model answers. Hosted AI and live Supabase stay explicitly unavailable and untested; no private material or credentials were published.

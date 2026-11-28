@@ -6,7 +6,7 @@
 | --- | --- |
 | Stage | **Implementation and hardening sprint complete locally.** All P0 and P1 backlog items are Done; CI workflow and README badge are present. Licence and standard legal files remain absent by owner decision. Hosted AI and live Supabase remain unavailable and untested. |
 | Latest measured numbers | `npm.cmd test`: **75 pass / 0 fail**, ~10.3 s. `npm.cmd run check`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd run bench`: **exit 0**. CI workflows: **1**. Benchmark: synthetic local microbenchmark only. Legal scaffolding files: **none**. |
-| Next action | Publish the reviewed green commit, then confirm the remote CI run. After that: **M1-1** (synthetic two-page PDF import) — human-only gates (live Supabase, phone walkthrough, pilot, launch) stay owner-gated. |
+| Next action | Published and remotely verified: CI run `46153307737` (commit `fae1379`) is green. Next executable item is **M1-1** (synthetic two-page PDF import); human-only gates (live Supabase, phone walkthrough, pilot, launch) stay owner-gated. |
 | Verification baseline | Node `v24.18.1`, npm `11.16.0`. Capability tests were re-run with `OLLAMA_URL=http://127.0.0.1:1/api/chat` to prove the suite is deterministic with no model running: 75/75 pass. Exact commands and commit SHAs in `progress.md`. |
 
 ## Market and thesis
