@@ -56,6 +56,7 @@ let focusStartedAt;
 let focusTimer;
 let commandMatches = [];
 let commandIndex = 0;
+let commandTrigger = null;
 // Accounts stay off until /api/config confirms a configured backend. Local
 // plans and the offline sandbox work exactly as before when it is absent.
 const account = { configured: false, user: null, ready: false, mode: 'login' };
@@ -287,7 +288,7 @@ function atlasPreview(track) {
   if (!track) return '';
   return `<div>
     <span class="atlas-meta">${escapeHtml(track.region)} · ${escapeHtml(categoryLabels[track.category])}</span>
-    <h3>${escapeHtml(track.name)}${track.nativeName ? ` · ${escapeHtml(track.nativeName)}` : ''}</h3>
+    <h3>${escapeHtml(track.name)}${track.nativeName ? ` · <span lang="${escapeHtml(track.nativeLanguage || 'en')}">${escapeHtml(track.nativeName)}</span>` : ''}</h3>
     <p>${escapeHtml(track.description)}</p>
   </div>
   <a class="button button-secondary" href="#/catalog/${encodeURIComponent(track.id)}">Open track →</a>`;
@@ -351,7 +352,6 @@ function dashboard() {
     ${pageHeading('Study workspace', 'Your exams, courses, and new skills in one place.',
       '<a class="button button-secondary" href="#/materials">' + icon('folder-open', 17) + ' My materials</a>', 'dashboard-heading')}
     <section class="hero" aria-labelledby="hero-heading">
-      <img class="hero-art" src="./assets/study-hero.jpg" alt="" width="1672" height="941" fetchpriority="high">
       <div class="hero-content">
         <span class="hero-badge">${icon('sparkles', 16)} GrinderAI</span>
         <h2 id="hero-heading">What are you<br><span>preparing for?</span></h2>
@@ -414,7 +414,7 @@ function trackDetail(track) {
     <section class="track-detail-header panel" aria-labelledby="track-overview">
       <div class="track-card-top"><span class="track-mark">${icon(trackIcon(track), 23)}</span>${trackSaveButton(track)}</div>
       <h2 id="track-overview">Track overview</h2>
-      ${track.nativeName ? `<p class="track-meta">${escapeHtml(track.nativeName)}</p>` : ''}
+      ${track.nativeName ? `<p class="track-meta" lang="${escapeHtml(track.nativeLanguage || 'en')}">${escapeHtml(track.nativeName)}</p>` : ''}
       <p>${escapeHtml(track.description)}</p>
       <div class="start-links">
         <a class="button button-primary" href="${goalLink(track)}">${icon('plus', 18)} Build a study plan</a>
@@ -643,6 +643,19 @@ function commandItems() {
   return [...pages, ...examItems, ...planItems];
 }
 
+function setCommandIndex(index) {
+  const input = document.getElementById('command-query');
+  const container = document.getElementById('command-results');
+  if (!input || !container) return;
+  commandIndex = (index + commandMatches.length) % Math.max(1, commandMatches.length);
+  container.querySelectorAll('.command-result').forEach((item, position) => {
+    item.setAttribute('aria-selected', String(position === commandIndex));
+  });
+  const active = commandMatches[commandIndex];
+  if (active) input.setAttribute('aria-activedescendant', `command-option-${commandIndex}`);
+  else input.removeAttribute('aria-activedescendant');
+}
+
 function renderCommandResults(query = '') {
   const container = document.getElementById('command-results');
   if (!container) return;
@@ -650,20 +663,23 @@ function renderCommandResults(query = '') {
   commandMatches = commandItems()
     .filter(item => !needle || item.label.toLocaleLowerCase().includes(needle) || item.type.toLocaleLowerCase().includes(needle))
     .slice(0, 9);
-  commandIndex = 0;
   container.innerHTML = commandMatches.length
-    ? commandMatches.map((item, index) => `<button type="button" class="command-result" role="option" aria-selected="${index === 0}"
+    ? commandMatches.map((item, index) => `<button type="button" class="command-result" id="command-option-${index}"
+        role="option" aria-selected="${index === 0}" tabindex="-1"
         data-action="command-result" data-path="${escapeHtml(item.path)}">
         <span>${escapeHtml(item.label)}</span><small>${escapeHtml(item.type)}</small>
       </button>`).join('')
     : '<p class="command-empty">No matching pages, tracks, or plans.</p>';
+  setCommandIndex(0);
 }
 
 function openCommandPalette() {
   const palette = document.getElementById('command-palette');
   const input = document.getElementById('command-query');
   if (!palette || !input) return;
+  commandTrigger = document.activeElement;
   palette.hidden = false;
+  input.setAttribute('aria-expanded', 'true');
   input.value = '';
   renderCommandResults();
   input.focus();
@@ -671,7 +687,15 @@ function openCommandPalette() {
 
 function closeCommandPalette() {
   const palette = document.getElementById('command-palette');
-  if (palette) palette.hidden = true;
+  const input = document.getElementById('command-query');
+  if (!palette) return;
+  palette.hidden = true;
+  if (input) {
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+  }
+  if (commandTrigger?.isConnected) commandTrigger.focus();
+  commandTrigger = null;
 }
 
 function toggleMenu(button, open) {
@@ -906,15 +930,18 @@ document.addEventListener('keydown', event => {
     return;
   }
   if (!palette || palette.hidden) return;
-  if (key === 'escape') {
+  if (key === 'tab') {
+    // The dialog has one tab stop: its combobox. Keeping Tab inside the open
+    // dialog is the modal focus trap; options are reached with arrow keys.
+    event.preventDefault();
+    document.getElementById('command-query')?.focus();
+  } else if (key === 'escape') {
     event.preventDefault();
     closeCommandPalette();
   } else if ((key === 'arrowdown' || key === 'arrowup') && commandMatches.length) {
     event.preventDefault();
-    commandIndex = (commandIndex + (key === 'arrowdown' ? 1 : -1) + commandMatches.length) % commandMatches.length;
-    palette.querySelectorAll('.command-result').forEach((item, index) => {
-      item.setAttribute('aria-selected', String(index === commandIndex));
-    });
+    setCommandIndex(commandIndex + (key === 'arrowdown' ? 1 : -1));
+    palette.querySelector(`#command-option-${commandIndex}`)?.scrollIntoView?.({ block: 'nearest' });
   } else if (key === 'enter' && commandMatches[commandIndex]) {
     event.preventDefault();
     closeCommandPalette();

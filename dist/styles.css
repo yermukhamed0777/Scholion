@@ -809,7 +809,7 @@ body {
   background: var(--accent);
   color: var(--ink);
 }
-.tag { border-color: var(--border-strong); color: var(--signal); font-family: var(--mono); }
+.tag { border-color: var(--border-strong); color: var(--muted); font-family: var(--mono); }
 .text-link, .study-text-link { color: var(--text); border-bottom: 1px solid var(--accent); }
 .text-link:hover, .study-text-link:hover { color: var(--accent); }
 
@@ -897,7 +897,7 @@ input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select {
 }
 .atlas-preview h3 { font-size: 1.1rem; }
 .atlas-preview p { margin-block-start: 5px; color: var(--muted); font-size: .9rem; }
-.atlas-preview .atlas-meta { color: var(--signal); font: 600 .75rem/1.5 var(--mono); text-transform: uppercase; }
+.atlas-preview .atlas-meta { color: var(--muted); font: 600 .75rem/1.5 var(--mono); text-transform: uppercase; }
 
 /* Landing sandbox: a labelled offline demonstration, not a model call */
 .sandbox { display: grid; gap: 12px; margin-block-start: 26px; padding-block-start: 20px; border-block-start: 1px solid var(--border-strong); }
@@ -925,7 +925,7 @@ input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select {
 .command-dialog input { border: 0; border-block-end: 1px solid var(--border-strong); border-radius: 0; padding: 15px 16px; background: var(--field); font: .95rem var(--mono); }
 .command-results { max-height: min(52vh, 420px); overflow-y: auto; }
 .command-result { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 16px; border: 0; border-block-end: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--text); text-align: left; font-size: .9rem; }
-.command-result:hover, .command-result[aria-selected="true"] { background: var(--surface-raised); color: var(--signal); }
+.command-result:hover, .command-result[aria-selected="true"] { background: var(--surface-raised); color: var(--accent); }
 .command-result small { color: var(--subtle); font: .72rem var(--mono); text-transform: uppercase; }
 .command-empty { padding: 16px; color: var(--muted); font-size: .9rem; }
 

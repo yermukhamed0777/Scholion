@@ -1,13 +1,13 @@
 # Scholion — strategy
 
-## Status snapshot (2026-11-25)
+## Status snapshot (2026-11-28)
 
 | Field | Value |
 | --- | --- |
-| Stage | **Plan-only.** Phase 1 audit and Phase 3/4 plan creation complete. Phase 2 publish scaffold, licence file, CI and push explicitly deferred by the owner. |
-| Latest measured numbers | `npm test`: **53 pass / 0 fail**, 5564.8347 ms. `npm run check`: **exit 0**. `git ls-files`: **42 tracked files**. CI workflows: **0**. Benchmark/eval harness: **none**. Standard legal/CI files (`LICENSE`, `THIRD_PARTY_NOTICES`, `CONTRIBUTING`, `CHANGELOG`, `SECURITY`): **none**. |
-| Next action | **P0-1** (local unmatched-API hang) and **P0-2** (stale-localStorage remote clobber), in the same commit with a regression test each. |
-| Verification baseline | `git status --short --branch` → `## main...origin/main` (clean). Local HEAD `44c36bdd45b044ba5dc985017ea796eb21b4ddc2`; `origin/main` in sync. Node `v24.18.1`, npm `11.16.0`. |
+| Stage | **Implementation and hardening sprint complete locally.** All P0 and P1 backlog items are Done; CI workflow and README badge are present. Licence and standard legal files remain absent by owner decision. Hosted AI and live Supabase remain unavailable and untested. |
+| Latest measured numbers | `npm.cmd test`: **75 pass / 0 fail**, ~10.3 s. `npm.cmd run check`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd run bench`: **exit 0**. CI workflows: **1**. Benchmark: synthetic local microbenchmark only. Legal scaffolding files: **none**. |
+| Next action | Publish the reviewed green commit, then confirm the remote CI run. After that: **M1-1** (synthetic two-page PDF import) — human-only gates (live Supabase, phone walkthrough, pilot, launch) stay owner-gated. |
+| Verification baseline | Node `v24.18.1`, npm `11.16.0`. Capability tests were re-run with `OLLAMA_URL=http://127.0.0.1:1/api/chat` to prove the suite is deterministic with no model running: 75/75 pass. Exact commands and commit SHAs in `progress.md`. |
 
 ## Market and thesis
 
@@ -32,11 +32,11 @@ A "research desk with an evidence rail", not a flashcard app: restrained brutali
 
 | Metric | Value | Source |
 | --- | --- | --- |
-| Automated checks passing | 53 / 53 | `npm test` output, 2026-11-25 |
-| Syntax check | exit 0 | `npm run check` output, 2026-11-25 |
-| Tracked files | 42 | `git ls-files` |
-| CI workflows | 0 | `.github/` directory is empty; `git ls-files` shows no `.github` entries |
-| Benchmark / eval harness | 0 | no `bench`/`eval` script in `package.json:7-12`; none in repo |
+| Automated checks passing | 75 / 75 | `npm.cmd test` output, 2026-11-28 |
+| Syntax/lint/build gates | exit 0 | `npm.cmd run check`, `npm.cmd run lint`, `npm.cmd run build`, 2026-11-28 |
+| Tracked files | see `git ls-files --cached \| Measure-Object -Line` in the verification entry | plan/progress.md |
+| CI workflows | 1 | `.github/workflows/ci.yml`, added after owner authorization in this session |
+| Benchmark / eval harness | 1 synthetic microbenchmark | `npm.cmd run bench`; labelled `model=none; live=none; learnerText=none`; not model-quality evidence |
 | Legal/CI scaffolding files | 0 | root listing, 2026-11-25 |
 | Live Supabase instance | 0 | `docs/hermes-progress.md:30` and no env keys in tracked files |
 | Known defects entered in backlog | 12 | `backlog.md` P0-1…P1-5 |

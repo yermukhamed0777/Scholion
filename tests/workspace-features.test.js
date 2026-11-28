@@ -120,3 +120,50 @@ test('practice reveals one hint before the answer is checked', async t => {
   assert.equal(button.getAttribute('aria-pressed'), 'true');
   assert.match(hint.textContent, /fixed charge/);
 });
+
+test('the command palette traps focus and announces the active option', async t => {
+  isolateGlobals(t);
+  const window = await openWorkspace(t, '#/', 'a11y-palette');
+  const document = window.document;
+  const trigger = document.querySelector('[data-action="open-command"]');
+  trigger.focus();
+  trigger.click();
+  const palette = document.getElementById('command-palette');
+  const input = document.getElementById('command-query');
+  assert.equal(palette.hidden, false);
+  assert.equal(document.activeElement, input);
+  assert.equal(input.getAttribute('aria-expanded'), 'true');
+
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+  assert.equal(document.activeElement, input, 'Tab must not leave the open dialog');
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+  assert.equal(input.getAttribute('aria-activedescendant'), 'command-option-1');
+  assert.equal(document.getElementById('command-option-1').getAttribute('aria-selected'), 'true');
+
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(palette.hidden, true);
+  assert.equal(input.getAttribute('aria-expanded'), 'false');
+  assert.equal(document.activeElement, trigger, 'Focus returns to the control that opened the dialog');
+});
+
+test('non-English track names carry their own language', async t => {
+  isolateGlobals(t);
+  const window = await openWorkspace(t, '#/catalog/gaokao', 'a11y-lang');
+  const meta = window.document.querySelector('.track-meta[lang="zh"]');
+  assert.ok(meta, 'The native name needs a per-element lang');
+  assert.match(meta.textContent, /高考/);
+});
+
+test('acid signal is limited to correct answers, progress, and the sprint clock', async () => {
+  for (const file of ['styles.css', 'study.css']) {
+    const css = await readFile(new URL(`../dist/${file}`, import.meta.url), 'utf8');
+    for (const line of css.split(/\r?\n/)) {
+      if (line.includes('var(--signal)')) {
+        assert.match(line, /study-progress|study-choice-correct|study-feedback-correct|focus-clock/,
+          `${file} uses the acid signal outside its semantic roles: ${line.trim()}`);
+      }
+    }
+  }
+  const study = await readFile(new URL('../dist/study.css', import.meta.url), 'utf8');
+  assert.match(study, /\.study-choice:focus-within/, 'A non-:has() focus fallback is required');
+});

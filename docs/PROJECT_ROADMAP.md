@@ -4,7 +4,9 @@ Scholion is one source-grounded workspace for exam preparation, university cours
 
 This document replaces the earlier milestone list. It keeps what was verified, removes ambiguous completion language, and adds the architecture and working rules needed to continue development with ChatGPT without repeating the earlier cycle of optimistic reports and failed re-verification.
 
-Repository: <https://github.com/yermukhamed0777/Scholion> · Progress log: [hermes-progress.md](hermes-progress.md) · Next paste-ready assignment: [CHATGPT_NEXT_PROMPT.md](../CHATGPT_NEXT_PROMPT.md)
+Repository: <https://github.com/yermukhamed0777/Scholion> · Historical progress log: [hermes-progress.md](hermes-progress.md) · Active plan: [`plan/`](../plan/README.md) · Next assignment pointer: [CHATGPT_NEXT_PROMPT.md](../CHATGPT_NEXT_PROMPT.md)
+
+> **Current status, 28 November 2026.** The active plan and the single current check count live in [`plan/progress.md`](../plan/progress.md): **75 tests, 75 pass, 0 fail** with `npm.cmd test` on Node 24.18.1, plus green `npm run check`, `npm run lint` and `npm run build`. The per-commit counts (34/39/49/52/53/61/63) in the historical sections below are evidence for those commits, not the current total. M2 and the M5 foundation are `verified` with independent results recorded in `docs/hermes-progress.md`. Hosted AI and live Supabase remain **unavailable and untested**; no provider or project keys exist in the repository.
 
 ---
 
@@ -29,13 +31,13 @@ Scholion is deliberately **not** a cartoon flashcard app and not a cramped test 
 | Learner data | Browser key is `scholion:v1`. Plans saved under `allaroundprep:v1` migrate on first read and the legacy key is removed after a successful copy. | `tests/workspace-features.test.js`. |
 | Core flow | TXT/Markdown import with editable title and page range; cited explanation and four-choice question from a selected source; grading; reload persistence; Progress view. | `tests/study-import.test.js`, `tests/study-generation.test.js`. |
 | Provider boundary | Server-side `POST /api/generate-study`, local-only Ollama URL allowlist, schema validation, 400/413/415/502/504 errors, same process keeps serving static files after an outage. | `tests/test_provider_failure.test.js`. |
-| Automated checks | `npm run check` passes; `npm test` passes **34** checks. | Command output on 24 November 2026. |
+| Automated checks | `npm run check` passed; `npm test` passed **34** checks *at that commit*. | Command output on 24 November 2026; current count is in the status banner above. |
 | Design layer | Brutalist ink/concrete/vermilion/acid palette, square geometry, exam atlas, labelled offline sandbox, command palette, focus modes, restrained cursor tracking, margin citation rail, progressive hints. | Screenshot of the rendered home view; feature tests. |
 | Still open | A real `gpt-oss:20b` response through the app was not observed on 23 November (Ollama stopped). PDF ingestion, full exam simulations, accounts, and hosting are not built. | Progress log and previous live attempt. |
 
 A green test suite is necessary but not sufficient. Live-model and regular-browser checks stay open until they are observed and recorded.
 
-**Owner decision, 25 November 2026:** the repository was made public and hosting on Vercel was explicitly authorized, overriding the default hold in section 3. The build is at <https://scholion-beta.vercel.app>. No hosted model provider was approved, so generation on the public build returns the documented JSON 502; Supabase was built with environment placeholders and mocks rather than a live project. M1 was independently reproduced and is `verified`. M2 (passage spans, three-question drill) and the M5 account foundation have commits and tests but await independent confirmation. PDF import, a live Supabase instance with RLS and backup restore, and a human-visible phone/desktop walkthrough remain owner-gated.
+**Owner decision, 25 November 2026:** the repository was made public and hosting on Vercel was explicitly authorized, overriding the default hold in section 3. The build is at <https://scholion-beta.vercel.app>. No hosted model provider was approved, so generation on the public build returns the documented JSON 502; Supabase was built with environment placeholders and mocks rather than a live project. M1, M2 (passage spans, three-question drill) and the M5 account foundation each have independently reproduced results recorded in `docs/hermes-progress.md` and are `verified`. PDF import, a live Supabase instance with RLS and backup restore, and a human-visible phone walkthrough remain owner-gated. Hosted AI and live Supabase stay explicitly unavailable until they are configured and tested.
 
 ---
 
@@ -100,7 +102,7 @@ Keep these shapes versioned in `scholion:v1`. Additive fields are allowed; break
 | --- | --- | --- |
 | `Source` | `id`, `name`, `title`, `text` | `pages` optional and always learner-supplied; never inferred from a filename. `text` is plain text from an allowed local file. |
 | `PlanEntry` | `id`, `title`, `notes`, `sources`, `tasks`, `createdAt` | Tasks are `{ id, title, done }` and remain editable. `generatedStudy` is optional. |
-| `GeneratedStudy` | `id`, `sourceId`, `model`, `explanation`, `question`, `answer?` | `sourceId` must match an existing source. Question has four distinct choices, a valid `correctIndex`, and a `rationale`. |
+| `GeneratedStudy` | `id`, `sourceId`, `model`, `explanation`, `questions` | `sourceId` must match an existing source. `questions` holds 1–3 items `{ prompt, choices, correctIndex, rationale, span? }`; the legacy single `question` is kept as the first item for older plans. The explanation may carry a `span` of exact character offsets. Drill `answers` become one `Attempt` per question and are not stored on the study object. |
 | `Attempt` | `questionId`, `choiceIndex`, `correct`, `createdAt` | Generated attempts also carry `entryId` and `generationId`. Grading is one attempt per question. |
 | `Track` | `id`, `name`, `category`, `region`, `description`, `topics`, `tone` | `nativeName`, `syllabusVersion`, `language`, `reviewStatus`, and `rightsStatus` are added as evidence becomes available. |
 
@@ -122,7 +124,7 @@ Storage adapter responsibilities: read new key, migrate a legacy key once, valid
 | Pure data | Catalog ids, answer keys, rights evidence, coverage labels, plan templates | `catalog.test.js`, `coverage.test.js`, part of `study-generation.test.js` |
 | DOM/feature | Real form change and submit, edited metadata, citations after remount, atlas/sandbox/focus/command/hint interactions, migration | `study-import.test.js`, `workspace-features.test.js` |
 | API contract | Generation with both Ollama wire formats, outage, malformed input, valid output | `test_provider_failure.test.js` |
-| Live smoke | One real model answer through the app, answer checked against the excerpt | Pending; owner runs with Ollama up |
+| Live smoke | One real model answer through the app, answer checked against the excerpt | Local result verified 26 November 2026 with `npm.cmd run demo:local` (`gpt-oss:20b`, synthetic triangle excerpt, three keyed answers); hosted live smoke is unavailable by design until a provider is approved |
 | Browser walkthrough | A human-visible path on phone and desktop, keyboard and touch states | Desktop done on the public build (atlas, sandbox, palette, plan creation, task toggle, sprint exit, zero console errors); phone/touch still pending |
 
 Test doubles are labelled in test names and logs. A mocked provider proves the contract, never the educational quality of a real answer.
@@ -145,17 +147,17 @@ Gemini's comparative review was useful for the interaction ideas, but its navy/g
 | `--signal` | `#d9f253` | Acid: correct answer, progress fill, focus clock. Never used for decoration. |
 | `--radius` | `2px` | Square, engineered corners; no glass, no drop shadows. |
 
-Type: system sans for reading, monospace for labels, controls, and metadata. The hero uses tight, heavy type instead of an illustration; the old hero image remains in the repository but is not rendered. Contrast is checked for body text, muted text, and both signal colours on dark surfaces.
+Type: system sans for reading, monospace for labels, controls, and metadata. The hero uses tight, heavy type instead of an illustration; the old hero image asset remains tracked in the repository but is no longer referenced by the app or rendered. Acid `--signal` is reserved for correct answers, progress fill, and the sprint clock; vermilion marks actions and selection. Contrast is checked for body text, muted text, and both signal colours on dark surfaces.
 
 ### 5.2 Interaction patterns adopted from the review
 
 | Idea from Gemini | Scholion implementation | Reason / limits |
 | --- | --- | --- |
 | Exam-authentic practice | Exam sprint mode hides the sidebar and secondary cards, shows a clock, and keeps only the question surface. | Full Bluebook replica waits for a verified track-specific exam format; do not fake timing rules. |
-| Three-column cited AI workspace | Tasks stay left; the source desk and GrinderAI output stay in a sticky right rail; citations open the matching passage in place and mark it as cited. | True character-offset highlighting needs source spans from ingestion (M2); current version highlights the passage card. |
+| Three-column cited AI workspace | Tasks stay left; the source desk and GrinderAI output stay in a sticky right rail; citations open the matching passage in place and mark it as cited. | Character-offset highlighting uses source spans stored at ingestion (M2, verified); the passage card remains a fallback when a quote is missing. |
 | Command palette | `Ctrl/Cmd+K` opens a searchable list of pages, tracks, and plans; arrows and Enter work. | Faster than nested navigation across twelve tracks and many plans. |
 | Progressive hint reveals | The existing `hint` field is now shown on demand before the answer is checked. | Keeps the struggle useful without giving away the key. |
-| Instant deck conversion | Sandbox shows three pills and a cited mini-question offline; real deck conversion is a roadmap milestone. | An offline demo must be labelled as such; a real 3-question drill needs schema and grading changes. |
+| Instant deck conversion | Sandbox shows three pills and a cited mini-question offline; the real three-question drill is implemented in M2. | The offline demo stays labelled; the drill grades all three questions once each and records attempts (M2, verified). |
 | Interactive exam atlas | A strip of live format pills swaps a preview card on the landing view. | Communicates the product's breadth without a decorative globe or unverified flags. |
 | Cursor-tracking surface light | Kept, but reduced to a faint vermilion wash plus an accent border on fine pointers only; reduced motion disables it. | "Brutal, not too shiny" means structure first; the keyboard focus ring remains authoritative. |
 | Split-screen desk and margin | Source passage and GrinderAI output are side by side with connector pills. | Citation verification should be a glance, not a collapsed toggle. |
@@ -180,7 +182,7 @@ Milestones are numbered from the verified baseline. `Done` means owner-approved 
 - [x] Repository, package, storage key, UI text, titles, metadata, docs, prompts, and server banner renamed to Scholion; GrinderAI preserved.
 - [x] Legacy browser state migrates to `scholion:v1` and is removed only after a successful copy.
 - [x] Brutalist tokens, square geometry, atlas, labelled sandbox, command palette, sprint/desk modes, restrained cursor tracking, citation rail, and hint reveal implemented.
-- [x] `npm run check` and all 34 tests pass; rendered home view inspected.
+- [x] `npm run check` and all 34 tests passed at that commit; rendered home view inspected. Current count is in the status banner.
 - [x] Desktop visual direction confirmed in a real browser on the public build; phone viewport remains pending.
 
 ### M1 — Prove one live GrinderAI answer through the app — verified

@@ -9,10 +9,13 @@
     "dev": "node scripts/serve.mjs",
     "demo:local": "node scripts/demo-local.mjs",
     "check": "node --check dist/app.js && node --check dist/ui.js && node --check dist/learning.js && node --check dist/study.js && node --check dist/coverage.js && node --check dist/glow.js && node --check dist/source-registry.js && node --check dist/source-spans.js && node --check scripts/serve.mjs && node --check scripts/server-config.js && node --check scripts/study-endpoint.mjs && node --check scripts/account-endpoints.mjs && node --check scripts/supabase.mjs && node --check scripts/workspace-state.mjs && node --check api/generate-study.js && node --check api/account.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "lint": "node scripts/lint.mjs",
+    "bench": "node scripts/bench.mjs",
+    "build": "node scripts/build.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "devDependencies": {
     "jsdom": "^31.0.1"

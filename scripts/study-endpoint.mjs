@@ -3,6 +3,7 @@
 // allowlist, and the error taxonomy stay identical in both runtimes.
 
 import { spanForQuote } from '../dist/source-spans.js';
+import { clientKey, createRateLimiter } from './rate-limit.js';
 
 const studyRequestLimit = 2 * 1024 * 1024;
 // Provider < Vercel maxDuration (60 s) < browser timeout. Overridable only for
@@ -47,11 +48,27 @@ export function sendError(response, status, message) {
   if (!response.destroyed) sendJson(response, status, { error: { message } });
 }
 
+const generateLimiters = new Map();
+function generationLimiter(limit) {
+  if (!generateLimiters.has(limit)) {
+    generateLimiters.set(limit, createRateLimiter({ limit, windowMs: 60_000 }));
+  }
+  return generateLimiters.get(limit);
+}
+
 function hasText(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
 export async function generateStudy(request, response) {
+  const configuredLimit = Number(process.env.RATE_LIMIT_GENERATE_MAX);
+  const limit = Number.isInteger(configuredLimit) && configuredLimit > 0 ? configuredLimit : 30;
+  const decision = generationLimiter(limit)(clientKey(request));
+  if (!decision.allowed) {
+    if (typeof response.setHeader === 'function') response.setHeader('Retry-After', String(decision.retryAfter));
+    sendError(response, 429, 'Too many generation requests. Try again shortly.');
+    return;
+  }
   const mediaType = request.headers['content-type']?.split(';', 1)[0].trim().toLowerCase();
   if (mediaType !== 'application/json') {
     request.resume();

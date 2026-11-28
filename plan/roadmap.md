@@ -2,7 +2,7 @@
 
 THE PLAN. Three horizons, each split into what the assistant can do (**Intelligence**) and what only the owner can do (**Human**). A milestone is not done until its exit criteria are observed and the `plan/README.md` convention has been applied in the same commit. Every "target" number below is a **proposal**, not a measurement; measured values are in `strategy.md`.
 
-Current state: 53/53 automated checks pass, syntax check exit 0, 0 CI workflows, no benchmark, no licence file, no live Supabase, no hosted provider. "Implemented" means the code path exists; "verified" additionally requires the evidence gate in `docs/PROJECT_ROADMAP.md:52-62`.
+Current state (28 November 2026): 75/75 automated checks pass, syntax/lint/build gates green, one CI workflow on Node 24.18, a labelled synthetic benchmark, no licence file, no live Supabase, no hosted provider. All short-term items P0-1…P0-7 and P1-1…P1-5 are Done in `backlog.md`; the next executable work is M1-1. "Implemented" means the code path exists; "verified" additionally requires the evidence gate in `docs/PROJECT_ROADMAP.md:52-62`.
 
 ---
 

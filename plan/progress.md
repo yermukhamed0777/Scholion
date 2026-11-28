@@ -108,3 +108,45 @@ No CI exists, so there is no CI run to confirm. Push was deliberately not perfor
 | `curl.exe -sS -o NUL -w '%{http_code}' https://scholion-beta.vercel.app/` | `200` |
 
 **What remains open (mapped to backlog).** P0-2 still needs the full sign-in mutation regression test; P0-4 (engine declaration), P0-5 (doc contradictions), P0-6 (CI, gated), P0-7 (restore threat model, owner decision) remain open. Human-only: live Supabase/RLS/real restore (M1-2), phone/touch walkthrough (M2-1), student pilot (M2-2), launch/domain/pricing (M2-3), and educational checking of every model answer. The public origin has not received this commit; no push was authorized.
+
+## 2026-11-28 — P0/P1 completion, deterministic capability tests and public readiness
+
+**Scope.** Finish every remaining P0 item and the relevant P1 items, make the test suite independent of a running Ollama, add working CI and build gates, then publish a green reviewed state. No hosted model provider and no live Supabase project were configured or contacted. No new exam tracks or redesign.
+
+**Exactly what changed.**
+
+| Surface | Change |
+| --- | --- |
+| `tests/supabase-account.test.js` | Added a loopback capability stub with explicit available/unavailable answers; the account test no longer depends on a real Ollama. Added cases for HTTP-vs-HTTPS cookie flags, cross-origin CSRF rejection, access-token refresh, restore scope, and sign-out failure clearing cookies. |
+| `tests/account-sync.test.js` (new) | P0-2 regression: stale localStorage is seeded, the real app module signs in against a mock remote workspace, a real save-track mutation is clicked, and the single PUT body is asserted to keep the remote entry. |
+| `package.json`, `package-lock.json`, `README.md` | P0-4: `engines.node` is now `^22.22.2 \|\| ^24.15.0 \|\| >=26.0.0` in both manifests; README has one supported-range statement. |
+| `scripts/account-endpoints.mjs`, `scripts/supabase.mjs` | P0-7: conditional `Secure`, cross-origin rejection, JSON content-type enforcement, refresh-token cookie and renewal, fixed upstream error messages, scoped restore via `WORKSPACE_RESTORE_USER_IDS`, and cookie clearing on sign-out failure. |
+| `scripts/rate-limit.js` (new), `scripts/study-endpoint.mjs`, `scripts/supabase.mjs` | P1-1: fixed-window limiters for generation/auth/workspace/restore with `Retry-After`, env overrides, and no verbatim upstream error bodies. |
+| `tests/rate-limit.test.js`, `tests/privacy.test.js` (new) | P1-1/P1-2: quota, retry header, error-bound and no-learner-text-in-logs regressions. |
+| `scripts/lint.mjs`, `scripts/bench.mjs`, `scripts/build.mjs` (new), `package.json`, `vercel.json`, `.gitignore`, `.vercelignore` | P1-3/P0-6: real `lint`, `bench` and `build` gates; Vercel `buildCommand` runs the build; generated `build/` is ignored by Git and deployment. |
+| `dist/index.html`, `dist/app.js`, `dist/learning.js`, `dist/styles.css`, `dist/study.css`, `tests/workspace-features.test.js` | P1-4: combobox `aria-activedescendant`, Tab focus trap and focus return, `lang` on native track names, `:focus-within` fallback, acid `--signal` limited to correct/progress/clock. The unreferenced hero `<img>` was removed from the DOM. |
+| `CHATGPT_NEXT_PROMPT.md`, `README.md`, `plan/decisions.md` | P1-5: the tracked prompt file is now a short pointer to `plan/`; decision appended. |
+| `docs/PROJECT_ROADMAP.md`, `docs/hermes-progress.md`, `docs/CAPABILITY_MATRIX.md`, `plan/*.md` | P0-5: one current count (75), one M2 status (`verified`), current data contract, live-smoke and hero claims corrected, plan named as entry point, historical counts labelled per commit. |
+| `.github/workflows/ci.yml` | P0-6: `npm ci` → `npm test` → `npm run check` → `npm run lint` → `npm run build` on Node 24.18, push to `main` and PRs. The uncommitted badge in `README.md` was preserved. |
+
+**Exact commands and results (Node v24.18.1, npm.cmd 11.16.0).**
+
+| Command | Result |
+| --- | --- |
+| `git status --short --branch` at start | `## main...origin/main [ahead 2]`; ` M README.md`, `?? .github/` — the two local commits and the uncommitted badge/workflow were preserved |
+| `npm.cmd test` (baseline, before code changes) | 63 tests, 63 pass, 0 fail — only passed because a local Ollama happened to answer the probe; this was the 62/63 flake to remove |
+| `node --test tests/supabase-account.test.js` | 5 tests, 5 pass, 0 fail after the stub and security changes |
+| `node --test tests/account-sync.test.js` | 1 test, 1 pass, 0 fail |
+| `node --test tests/rate-limit.test.js` | 4 tests, 4 pass, 0 fail |
+| `node --test tests/privacy.test.js` | 2 tests, 2 pass, 0 fail |
+| `node --test tests/workspace-features.test.js` | 10 tests, 10 pass, 0 fail after accessibility changes |
+| `npm.cmd ci` | `added 28 packages, and audited 29 packages in 13s`; `found 0 vulnerabilities` |
+| `npm.cmd test` (final) | **75 tests, 75 pass, 0 fail**, 15.47 s |
+| `npm.cmd test` with `OLLAMA_URL=http://127.0.0.1:1/api/chat` | **75 tests, 75 pass, 0 fail** — determinism proven with no reachable model; the unavailable capability state is asserted explicitly |
+| `npm.cmd run check` | exit 0; all 16 `node --check` invocations passed |
+| `npm.cmd run lint` | `Lint passed: 41 JavaScript files checked; browser bundles carry no server secrets.` |
+| `npm.cmd run build` | `Build passed: 4 deployable files; manifest written to build/manifest.json.` |
+| `npm.cmd run bench` | exit 0; labelled `model=none; live=none; learnerText=none` |
+| `git diff --check` | exit 0 (only LF→CRLF autocrlf warnings on Windows) |
+
+**What remains open (mapped to backlog).** All P0 and P1 backlog items are Done locally. Remote CI result must be confirmed after the reviewed push. Owner/human gates remain: live Supabase project with RLS and real restore (M1-2), phone/touch walkthrough (M2-1), employer pilot (M2-2), staging and launch/domain/pricing (M2-3), licence decision, and educational checking of every model answer. Hosted AI and live Supabase are deliberately unavailable and untested; no credentials or private material are tracked.

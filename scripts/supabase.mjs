@@ -46,9 +46,13 @@ async function request(config, path, { method = 'GET', body, token, service = fa
     data = null;
   }
   if (!response.ok) {
-    const message = typeof data?.msg === 'string' ? data.msg
-      : typeof data?.message === 'string' ? data.message
-        : `The account service responded ${response.status}.`;
+    // Upstream bodies are never relayed verbatim: they may contain provider
+    // internals or learner-supplied values. Clients receive one fixed message
+    // per status class; details stay out of logs and error bodies alike.
+    const message = response.status === 401 ? 'The email or password is incorrect.'
+      : response.status === 400 || response.status === 422 ? 'Check the account details and try again.'
+        : response.status === 429 ? 'Too many attempts. Try again shortly.'
+          : 'The account service is unavailable.';
     throw Object.assign(new Error(message), { status: response.status === 401 ? 401 : 502 });
   }
   return data;
@@ -70,6 +74,20 @@ export async function signUp(config, email, password) {
 export async function signIn(config, email, password) {
   const body = credentials(email, password);
   return request(config, '/auth/v1/token?grant_type=password', { method: 'POST', body });
+}
+
+// A short-lived access token can be renewed without asking for the password
+// again. A rejected refresh is an ordinary signed-out state, not a failure.
+export async function refreshSession(config, refreshToken) {
+  if (typeof refreshToken !== 'string' || !refreshToken) return null;
+  try {
+    return await request(config, '/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST', body: { refresh_token: refreshToken },
+    });
+  } catch (error) {
+    if (error.status === 401) return null;
+    throw error;
+  }
 }
 
 export async function sessionUser(config, token) {

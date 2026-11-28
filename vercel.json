@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "outputDirectory": "dist",
-  "buildCommand": "npm run check",
+  "buildCommand": "npm run build",
   "rewrites": [
     { "source": "/api/config", "destination": "/api/account?route=/api/config" },
     { "source": "/api/auth/:path*", "destination": "/api/account?route=/api/auth/:path*" },

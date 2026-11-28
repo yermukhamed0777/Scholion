@@ -27,14 +27,17 @@ Research or scoping sessions still produce a plan entry. A session with no code 
 
 ### Exact verification commands today
 
-`package.json:7-12` currently defines only `start`, `dev`, `check` and `test`. There is **no** benchmark, lint or build script, and `.github/workflows` does not exist. Therefore steps 6 is satisfied by running these exact commands and explicitly recording that no benchmark/lint/build script exists:
+As of 28 November 2026 `package.json` defines real `start`, `dev`, `check`, `test`, `lint`, `bench` and `build` scripts, and `.github/workflows/ci.yml` runs them. Step 6 is satisfied by these exact commands; all were green in the verification session recorded in `progress.md`:
 
 ```bash
-npm ci            # not re-run in the creation session; node_modules already present
-npm test          # node --test tests/*.test.js
-npm run check     # syntax-only node --check chain; also used as Vercel buildCommand (vercel.json:4)
+npm ci            # install/dev-dependency gate, Node 24.18.1
+npm test          # node --test tests/*.test.js — 75/75 pass
+npm run check     # explicit node --check chain
+npm run lint      # syntax + publish-safety rules (scripts/lint.mjs)
+npm run build     # validates deployable files, writes build/manifest.json
+npm run bench     # labelled synthetic microbenchmark, no model, no learner text
 ```
 
-On this Windows host `npm.ps1` is blocked by the PowerShell execution policy; use `npm.cmd` instead (environment quirk, not a project defect). Adding a real `lint`, `bench` and `build` script is backlog item **P1-3**; until then do not claim a benchmark or build gate exists.
+On this Windows host `npm.ps1` is blocked by the PowerShell execution policy; use `npm.cmd` instead (environment quirk, not a project defect). The build script produces a manifest under the ignored `build/` directory; the benchmark is never presented as live-model evidence.
 
 Root link: [README.md](../README.md).

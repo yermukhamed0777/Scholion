@@ -1,5 +1,6 @@
 # Private local material and agent scratch files must never be uploaded.
 node_modules/
+build/
 Materials/
 tmp/
 testdir/

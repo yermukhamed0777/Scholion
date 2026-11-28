@@ -1,30 +1,103 @@
 // Same-origin account endpoints. Configuration stays on the server; the
-// browser only ever receives an HttpOnly session cookie and its own data.
+// browser only ever receives HttpOnly session cookies and its own data.
 
 import { sendError, sendJson } from './study-endpoint.mjs';
 import { resolveGenerationCapability } from './generation-capability.js';
+import { clientKey, createRateLimiter } from './rate-limit.js';
 import { deleteSourceFromWorkspace, emptyWorkspace, isValidWorkspace } from './workspace-state.mjs';
-import { readSupabaseConfig, readWorkspace, sessionUser, signIn, signOut, signUp, writeWorkspace } from './supabase.mjs';
+import {
+  readSupabaseConfig, readWorkspace, refreshSession, sessionUser, signIn, signOut, signUp, writeWorkspace,
+} from './supabase.mjs';
 
 const cookieName = 'scholion_session';
+const refreshCookieName = 'scholion_refresh';
+const rateLimiters = new Map();
+const rateDefaults = { auth: 30, workspace: 120, restore: 5 };
 
-function sessionToken(request) {
+function limitFor(kind, env) {
+  const value = Number(env[`RATE_LIMIT_${kind.toUpperCase()}_MAX`]);
+  return Number.isInteger(value) && value > 0 ? value : rateDefaults[kind];
+}
+
+function limiter(kind, limit) {
+  const id = `${kind}:${limit}`;
+  if (!rateLimiters.has(id)) rateLimiters.set(id, createRateLimiter({ limit, windowMs: 60_000 }));
+  return rateLimiters.get(id);
+}
+
+function cookieValue(request, name) {
   for (const part of (request.headers.cookie || '').split(';')) {
-    const [name, ...rest] = part.trim().split('=');
-    if (name === cookieName) {
+    const [key, ...rest] = part.trim().split('=');
+    if (key === name) {
       try { return decodeURIComponent(rest.join('=')); } catch { return null; }
     }
   }
   return null;
 }
 
-function setSession(response, token) {
-  response.setHeader('Set-Cookie', token
-    ? `${cookieName}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600`
-    : `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+function sessionToken(request) {
+  return cookieValue(request, cookieName);
+}
+
+function cookieAttributes(request) {
+  const forwarded = String(request.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
+  const secure = Boolean(request.socket?.encrypted) || forwarded === 'https';
+  return `Path=/; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}`;
+}
+
+function setSession(response, tokens, request) {
+  const attributes = cookieAttributes(request);
+  const cookies = [
+    tokens?.access_token
+      ? `${cookieName}=${encodeURIComponent(tokens.access_token)}; ${attributes}; Max-Age=3600`
+      : `${cookieName}=; ${attributes}; Max-Age=0`,
+    tokens?.refresh_token
+      ? `${refreshCookieName}=${encodeURIComponent(tokens.refresh_token)}; ${attributes}; Max-Age=604800`
+      : `${refreshCookieName}=; ${attributes}; Max-Age=0`,
+  ];
+  response.setHeader('Set-Cookie', cookies);
+}
+
+// A browser form from another origin must never be able to change an account
+// or a workspace. Non-browser clients have no Origin header; JSON content type
+// and SameSite cookies still constrain those requests.
+function assertSameOrigin(request) {
+  const origin = request.headers.origin;
+  if (!origin) return;
+  let parsed;
+  try { parsed = new URL(origin); } catch {
+    throw Object.assign(new Error('This request is not allowed.'), { status: 403 });
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.host !== request.headers.host) {
+    throw Object.assign(new Error('This request is not allowed.'), { status: 403 });
+  }
+}
+
+async function resolveSession(config, request, response) {
+  if (!config) return null;
+  const access = sessionToken(request);
+  const refresh = cookieValue(request, refreshCookieName);
+  if (!access && !refresh) return null;
+  if (access) {
+    try {
+      const user = await sessionUser(config, access);
+      if (user) return user;
+    } catch (error) {
+      if (error.status !== 401) throw error;
+    }
+  }
+  if (!refresh) return null;
+  const renewed = await refreshSession(config, refresh);
+  if (!renewed?.access_token) return null;
+  setSession(response, renewed, request);
+  return sessionUser(config, renewed.access_token);
 }
 
 async function readJson(request, limit = 1024 * 1024) {
+  const mediaType = request.headers['content-type']?.split(';', 1)[0].trim().toLowerCase();
+  if (mediaType !== 'application/json') {
+    throw Object.assign(new Error('Use application/json for this request.'), { status: 415 });
+  }
   const chunks = [];
   let size = 0;
   for await (const chunk of request.iterator({ destroyOnReturn: false })) {
@@ -70,6 +143,18 @@ export async function handleAccountRequest(pathname, request, response, env = pr
   }
 
   try {
+    if (request.method !== 'GET') {
+      assertSameOrigin(request);
+      const kind = pathname === '/api/workspace/restore' ? 'restore'
+        : workspaceRoutes.includes(pathname) ? 'workspace' : 'auth';
+      const decision = limiter(kind, limitFor(kind, env))(clientKey(request));
+      if (!decision.allowed) {
+        response.setHeader('Retry-After', String(decision.retryAfter));
+        sendError(response, 429, 'Too many requests. Try again shortly.');
+        return true;
+      }
+    }
+
     if (pathname === '/api/auth/signup' || pathname === '/api/auth/login') {
       if (request.method !== 'POST') {
         response.writeHead(405, { Allow: 'POST' }).end();
@@ -79,7 +164,7 @@ export async function handleAccountRequest(pathname, request, response, env = pr
       const result = pathname.endsWith('signup')
         ? await signUp(configured(), body?.email, body?.password)
         : await signIn(configured(), body?.email, body?.password);
-      if (result?.access_token) setSession(response, result.access_token);
+      setSession(response, result, request);
       sendJson(response, 200, { user: result?.user ?? null });
       return true;
     }
@@ -89,14 +174,19 @@ export async function handleAccountRequest(pathname, request, response, env = pr
         response.writeHead(405, { Allow: 'POST' }).end();
         return true;
       }
-      await signOut(configured(), sessionToken(request));
-      setSession(response, null);
+      const activeConfig = configured();
+      try {
+        await signOut(activeConfig, sessionToken(request));
+      } catch {
+        // Revocation failure must not leave a live cookie in the browser.
+      }
+      setSession(response, null, request);
       sendJson(response, 200, { ok: true });
       return true;
     }
 
     if (pathname === '/api/auth/session') {
-      const active = config ? await sessionUser(config, sessionToken(request)) : null;
+      const active = await resolveSession(config, request, response);
       sendJson(response, 200, { user: active ? { id: active.id, email: active.email ?? null } : null });
       return true;
     }
@@ -114,12 +204,16 @@ export async function handleAccountRequest(pathname, request, response, env = pr
       if (typeof body?.userId !== 'string' || !isValidWorkspace(body.state)) {
         throw Object.assign(new Error('Send a user id and a valid workspace backup.'), { status: 400 });
       }
+      const allowedIds = String(env.WORKSPACE_RESTORE_USER_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
+      if (!allowedIds.includes(body.userId)) {
+        throw Object.assign(new Error('This restore token is not scoped to that user.'), { status: 403 });
+      }
       await writeWorkspace(configured(), body.userId, body.state);
       sendJson(response, 200, { ok: true });
       return true;
     }
 
-    const active = config ? await sessionUser(config, sessionToken(request)) : null;
+    const active = await resolveSession(config, request, response);
     if (!active) {
       sendError(response, 401, 'Sign in to use your private workspace.');
       return true;

@@ -1,5 +1,7 @@
 # Scholion progress
 
+> **Current status — 28 November 2026.** One current automated count: **75 tests, 75 pass, 0 fail** (`npm.cmd test`, Node 24.18.1), with `npm run check`, `npm run lint` and `npm run build` green. The active plan and results are in [`plan/progress.md`](../plan/progress.md). Counts inside the dated entries below (28/34/39/49/52/53/61/63) are historical evidence for those commits, not the current total. M2 is `verified` (the earlier "ready for review" heading was superseded by the independent PASS recorded in that entry). Hosted AI and live Supabase remain unavailable and untested.
+
 ## Current status — 25 November 2026
 
 **Status:** M0 visual direction confirmed on desktop; phone viewport still pending. M1 `verified`; M2 `verified`; M5 foundation `verified`. No milestone is marked verified from a screenshot, an HTTP 200 alone, a direct provider call, or a mocked response alone; each has live and independently reproduced checks recorded below.
@@ -14,7 +16,7 @@ Owner decisions recorded on 25 November 2026: the repository was made public; Ve
 4. **Live evidence:** the keyed answer "A scalene triangle has at least one side equal to another side" was checked against "A scalene triangle has three sides of different lengths" and is correct. No direct Ollama generation call was substituted.
 5. **Independent result:** PASS. A second agent reproduced all four checks from a clean `git archive` extraction of `66030095104086cca2ad2533b2ce578aebad59fc` (scratch scripts at `C:\Users\erm1h\AppData\Local\Temp\scholion-m1-verify\`): live POST with a synthetic logic excerpt keyed index `2` correctly; real-app jsdom DOM path through form → second source → live generation → grading → both citations → reload; 39/39 tests; outage returning JSON 502 while the same process served the homepage with 200. All five definition-of-done boxes are filled. A human-visible phone/desktop walkthrough remains a separate §4.3 row and is still pending.
 
-### M2 — ready for review
+### M2 — verified
 
 1. **Commit:** `9e337aeecd87193ccf2e416a7eff7c561bd6aadc` — `Complete M2: passage spans and a three-question drill`. Files: `dist/app.js`, `dist/source-spans.js`, `dist/study.css`, `dist/study.js`, `package.json`, `scripts/study-endpoint.mjs`, and three new tests.
 2. **Automated evidence:** `npm run check` passed across all modules including the three account modules; `npm test` passed **49** checks at that commit; `git diff --check` clean.

@@ -436,6 +436,13 @@
   clip-path: inset(50%);
 }
 
+/* Fallback for browsers without :has(): :focus-within keeps the whole choice
+   visibly focused, while :has(input:focus-visible) refines it to keyboard use. */
+.study-choice:focus-within {
+  outline: 2px solid var(--focus, var(--blue));
+  outline-offset: 2px;
+}
+
 .study-choice:has(input:focus-visible) {
   outline: 2px solid var(--focus, var(--blue));
   outline-offset: 2px;
@@ -637,11 +644,11 @@
   font: 600 .75rem/1.2 var(--mono);
   text-transform: uppercase;
 }
-.study-hint-button:hover { border-color: var(--signal); color: var(--signal); }
+.study-hint-button:hover { border-color: var(--accent); color: var(--accent); }
 .study-hint {
   margin-block-start: .7rem;
   padding: .65rem .85rem;
-  border-inline-start: 3px solid var(--signal);
+  border-inline-start: 3px solid var(--accent);
   background: var(--field);
   color: var(--muted);
   font-size: .9rem;

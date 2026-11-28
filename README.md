@@ -1,12 +1,14 @@
 # Scholion
 
+![CI](https://github.com/yermukhamed0777/Scholion/actions/workflows/ci.yml/badge.svg)
+
 Scholion is a source-grounded study workspace for exam preparation, university courses, and workplace learning. Bring a goal, choose a track, or attach your own notes; GrinderAI explains a selected passage, proposes tasks, and writes a question whose answer can be traced back to that passage. The AI helper is called **GrinderAI**; the product is **Scholion**.
 
 Repository: <https://github.com/yermukhamed0777/Scholion>
 
 ## Run locally
 
-Use Node.js 22 or later. The browser app has no runtime dependencies.
+Use Node.js `^22.22.2`, `^24.15.0`, or `>=26.0.0` — the range required by the jsdom test dependency and declared in `package.json`. Node 24.18.1 is the verified version. The browser app has no runtime dependencies.
 
 ```bash
 npm start
@@ -26,9 +28,9 @@ Account features stay off unless the server is configured. Set these as Vercel e
 
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — required to enable sign-in.
 - `SUPABASE_TABLE` — optional workspace table name (default `workspaces`).
-- `WORKSPACE_RESTORE_TOKEN` — optional; required for the guarded backup-restore endpoint.
+- `WORKSPACE_RESTORE_TOKEN` and `WORKSPACE_RESTORE_USER_IDS` — both required for the guarded backup-restore endpoint. The token alone is not enough: the user id must appear in the comma-separated allowlist.
 
-The browser receives only an HttpOnly session cookie. Workspace reads and writes are resolved against the verified user id on the server with the service-role key; on sign-in, browser-local plans migrate once and are never overwritten by a later migration. Deleting a source removes its generated study and derived attempts. When no keys are set, `/api/config` reports `accounts:false`, `/api/workspace` returns 503, and the local-only workspace keeps working.
+The browser receives only HttpOnly, SameSite cookies (a short-lived session token and a refresh token; `Secure` is added on HTTPS). Workspace reads and writes are resolved against the verified user id on the server with the service-role key; on sign-in, browser-local plans migrate once and are never overwritten by a later migration. Deleting a source removes its generated study and derived attempts. State-changing endpoints reject cross-origin requests and apply fixed-window rate limits. When no keys are set, `/api/config` reports `accounts:false`, `/api/workspace` returns 503, and the local-only workspace keeps working.
 
 ## What is in the workspace
 
@@ -40,7 +42,7 @@ The browser receives only an HttpOnly session cookie. Workspace reads and writes
 - **Command palette**: press `Ctrl/Cmd+K` to jump to a page, track, or plan.
 - **Desk / Sprint**: the top-bar toggle switches between a calm research desk and a minimal exam-sprint view with a clock. It changes the atmosphere only; learner data is untouched.
 
-The visual direction is deliberately brutal: ink and concrete surfaces, hairline rules, square corners, vermilion for action and citation, acid yellow only for correct answers and progress. Pointer tracking is a faint accent on fine pointers and is disabled for reduced motion. Keyboard focus styling always wins.
+The visual direction is deliberately brutal: ink and concrete surfaces, hairline rules, square corners, vermilion for action and citation, and acid yellow only for correct answers, progress fill, and the sprint clock. Pointer tracking is a faint accent on fine pointers and is disabled for reduced motion. Keyboard focus styling always wins, including a non-`:has()` fallback for radio choices and a trapped focus in the command palette.
 
 ## GrinderAI with local Ollama
 
@@ -50,16 +52,26 @@ Create a plan with a text or Markdown excerpt, choose a source, and select **Gen
 
 No learner text or credentials are written to logs or source control.
 
-## Tests
+## Privacy and storage
 
-Use Node.js 24.15 or later in the Node 24 series for the test dependencies.
+Learner plans, notes, sources, and attempts are stored **in plain text** in this browser under `scholion:v1`; focus mode is a separate `scholion:mode` preference. Browser-local data is not encrypted and is readable by anyone with access to that browser profile or device. Clearing site data removes it. When optional Supabase accounts are configured, the same workspace is also synced to that account; reads and writes are resolved against the verified user id on the server.
+
+The local app sends a selected excerpt only to the configured **loopback** Ollama endpoint. No learner text or provider credential is written to server logs, and client error bodies are fixed messages rather than upstream provider text. Hosted AI and live Supabase are deliberately unavailable until an owner-approved provider or a real project is configured and tested; the public build reports `generationStatus.status: "unavailable"` and `accounts: false`.
+
+## Tests and build gates
+
+Verified on Node.js 24.18.1; the supported range matches `package.json` and the lockfile (`^22.22.2`, `^24.15.0`, or `>=26.0.0`).
 
 ```bash
 npm ci
 npm test
+npm run check
+npm run lint
+npm run build
+npm run bench
 ```
 
-The suite covers data integrity, derived coverage, real upload and citation flows, generated-answer persistence, provider failure paths, storage migration, and the new workspace interactions. A live `gpt-oss:20b` check is documented separately in the [roadmap](docs/PROJECT_ROADMAP.md) and must be run with Ollama up.
+The suite covers data integrity, derived coverage, real upload and citation flows, generated-answer persistence, provider failure paths, storage migration, account/session security, privacy, rate limiting, and the workspace interactions. `npm run bench` is a labelled synthetic microbenchmark of local helpers — it calls no model and is not evidence of answer quality. A live `gpt-oss:20b` check is documented separately in the [capability matrix](docs/CAPABILITY_MATRIX.md) and must be run with Ollama up.
 
 ## Storage and the rename
 
@@ -73,7 +85,6 @@ Learner data now lives under `scholion:v1`. Plans saved under the previous `alla
 - `dist/glow.js` — optional pointer tracking.
 - `scripts/serve.mjs`, `scripts/server-config.js` — static server, generation endpoint, provider adapter, host/port resolution.
 - `docs/PROJECT_ROADMAP.md` — architecture, design system, milestones, and evidence gates.
-- `CHATGPT_NEXT_PROMPT.md` — paste-ready next assignment.
 
 Private books, extracted text, derived notes, credentials, and scratch files stay in `Materials/`, `tmp/`, or local ignore rules and are never committed.
 
@@ -85,4 +96,4 @@ The [capability matrix](docs/CAPABILITY_MATRIX.md) distinguishes what is verifie
 
 ## Continue development
 
-Read the [plan](plan/README.md) and the [project roadmap](docs/PROJECT_ROADMAP.md) first. Use [CHATGPT_NEXT_PROMPT.md](CHATGPT_NEXT_PROMPT.md) for the paste-ready assignment, and record observed evidence in the [progress log](docs/hermes-progress.md).
+Read the [plan](plan/README.md) and the [backlog](plan/backlog.md) first: they name the next executable assignment. [CHATGPT_NEXT_PROMPT.md](CHATGPT_NEXT_PROMPT.md) is a pointer to that plan, not a separate status record. Observed historical evidence lives in the [progress log](docs/hermes-progress.md).

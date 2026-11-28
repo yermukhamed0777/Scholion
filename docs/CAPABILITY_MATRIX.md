@@ -21,11 +21,11 @@ This matrix separates **locally verified**, **publicly available** and **configu
 | Capability | Status | Exact command / result |
 | --- | --- | --- |
 | Local inference through the app endpoint | **Verified live** | `npm.cmd run demo:local` → model `gpt-oss:20b`, source `demo-synthetic-triangles`, three questions; keyed answers Equilateral / Isosceles / Scalene all follow the synthetic excerpt; `Structural checks: PASS`, `Citation checks: PASS`, exit 0 |
-| Contract validation, exact spans, duplicate prompts | **Verified by tests** | `npm.cmd test` → 61/61 pass, including `tests/study-three-questions.test.js` |
+| Contract validation, exact spans, duplicate prompts | **Verified by tests** | `npm.cmd test` → 75/75 pass, including `tests/study-three-questions.test.js`; Ollama capability is probed with a loopback stub, so the suite is deterministic with no model running |
 | Injected instructions in material | **Contract verified** | `node --test tests/source-integrity.test.js` → "instructions embedded in material stay in the data message and cannot change the contract" PASS: injected text appears only in the user/data message; a five-question output is rejected with 502 |
 | Provider timeout | **Verified** | same test file → mock provider that never answers returns JSON 504 while the homepage still returns 200 |
-| Plans, citations, deletion cascade, duplicate uploads | **Verified by tests** | 61/61 pass; new orphan-deletion and duplicate-attachment tests included |
-| Syntax baseline | **Verified** | `npm.cmd run check` → exit 0 |
+| Plans, citations, deletion cascade, duplicate uploads | **Verified by tests** | 75/75 pass; orphan-deletion and duplicate-attachment tests included |
+| Syntax, lint and build gates | **Verified** | `npm.cmd run check`, `npm.cmd run lint`, `npm.cmd run build` → exit 0 |
 
 Reproduce the live demo with Ollama running on `127.0.0.1:11434` and `gpt-oss:20b` installed:
 

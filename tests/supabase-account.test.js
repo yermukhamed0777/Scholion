@@ -44,9 +44,10 @@ async function startApp(t, env) {
 
 // Minimal GoTrue + PostgREST surface. It records which token and which user id
 // reached each route so the test can prove per-user access checks.
-function mockSupabase(t) {
+function mockSupabase(t, { failLogout = false } = {}) {
   const users = new Map();
   const tokens = new Map();
+  const refreshTokens = new Map();
   const workspaces = new Map();
   const seen = [];
   const server = createServer(async (request, response) => {
@@ -60,6 +61,21 @@ function mockSupabase(t) {
     let body = {};
     try { body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}; } catch { body = {}; }
 
+    // Test-only control that simulates an expired access token while keeping
+    // the refresh token valid, so the refresh flow can be exercised.
+    if (url.pathname === '/control/expire-access-tokens') {
+      tokens.clear();
+      return send(200, { ok: true });
+    }
+    if (url.pathname === '/auth/v1/token' && url.searchParams.get('grant_type') === 'refresh_token') {
+      const userId = refreshTokens.get(body.refresh_token);
+      if (!userId) return send(401, { msg: 'Invalid refresh token' });
+      const token = `token-${userId}-refreshed`;
+      const refresh = `refresh-${userId}-2`;
+      tokens.set(token, userId);
+      refreshTokens.set(refresh, userId);
+      return send(200, { access_token: token, refresh_token: refresh });
+    }
     if (url.pathname === '/auth/v1/signup' || url.pathname === '/auth/v1/token') {
       const user = url.pathname.endsWith('signup')
         ? { id: `user-${users.size + 1}`, email: body.email }
@@ -67,8 +83,10 @@ function mockSupabase(t) {
       if (!user) return send(401, { msg: 'Invalid credentials' });
       users.set(user.id, { ...user, password: body.password });
       const token = `token-${user.id}`;
+      const refresh = `refresh-${user.id}`;
       tokens.set(token, user.id);
-      return send(200, { user: { id: user.id, email: user.email }, access_token: token });
+      refreshTokens.set(refresh, user.id);
+      return send(200, { user: { id: user.id, email: user.email }, access_token: token, refresh_token: refresh });
     }
     if (url.pathname === '/auth/v1/user') {
       const token = (request.headers.authorization || '').replace(/^Bearer /, '');
@@ -77,6 +95,7 @@ function mockSupabase(t) {
       return userId ? send(200, { id: userId, email: users.get(userId)?.email }) : send(401, { msg: 'Not authenticated' });
     }
     if (url.pathname === '/auth/v1/logout') {
+      if (failLogout) return send(500, { msg: 'Upstream logout failure' });
       tokens.delete((request.headers.authorization || '').replace(/^Bearer /, ''));
       return send(200, {});
     }
@@ -102,6 +121,29 @@ function mockSupabase(t) {
   return { server, seen, workspaces };
 }
 
+// The capability probe only needs a loopback HTTP response, never a running
+// model. Tests choose the answer explicitly so the suite is deterministic on
+// machines with or without Ollama installed.
+async function mockOllama(t, { available = true } = {}) {
+  const server = createServer((request, response) => {
+    request.resume();
+    if (available) {
+      response.writeHead(200, { 'Content-Type': 'application/json' });
+      response.end('{"models":[]}');
+    } else {
+      response.writeHead(503, { 'Content-Type': 'application/json' });
+      response.end('{"error":"unavailable"}');
+    }
+  });
+  t.after(() => {
+    server.close();
+    server.closeAllConnections();
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  return `http://127.0.0.1:${server.address().port}/api/chat`;
+}
+
 function request(origin, path, { method = 'GET', body, cookie, headers = {} } = {}) {
   return fetch(origin + path, {
     method,
@@ -115,16 +157,23 @@ function request(origin, path, { method = 'GET', body, cookie, headers = {} } = 
   });
 }
 
-const cookieFrom = response => (response.headers.get('set-cookie') || '').split(';')[0];
+const cookieFrom = response => (response.headers.get('set-cookie') || '')
+  .split(/,\s*(?=[^;,=]+=)/)
+  .map(cookie => cookie.split(';')[0].trim())
+  .filter(Boolean)
+  .join('; ');
 
 test('account endpoints keep workspaces private, migrate once, delete derived data and restore backups', { timeout: 30_000 }, async t => {
   const supabase = mockSupabase(t);
   await once(supabase.server, 'listening');
+  const ollamaUrl = await mockOllama(t, { available: true });
   const origin = await startApp(t, {
     SUPABASE_URL: `http://127.0.0.1:${supabase.server.address().port}`,
     SUPABASE_ANON_KEY: 'anon-test-key',
     SUPABASE_SERVICE_ROLE_KEY: 'service-test-key',
     WORKSPACE_RESTORE_TOKEN: 'restore-test-token',
+    WORKSPACE_RESTORE_USER_IDS: 'user-1',
+    OLLAMA_URL: ollamaUrl,
   });
 
   const config = await (await request(origin, '/api/config')).json();
@@ -136,10 +185,37 @@ test('account endpoints keep workspaces private, migrate once, delete derived da
 
   const signupA = await request(origin, '/api/auth/signup', { method: 'POST', body: { email: 'a@example.com', password: 'password123' } });
   assert.equal(signupA.status, 200);
-  const cookieA = cookieFrom(signupA);
+  let cookieA = cookieFrom(signupA);
   assert.ok(cookieA.startsWith('scholion_session='));
+  assert.doesNotMatch(signupA.headers.get('set-cookie') || '', /;\s*Secure/i,
+    'A plain HTTP request must not receive a Secure-only cookie');
   const sessionA = await (await request(origin, '/api/auth/session', { cookie: cookieA })).json();
   assert.equal(sessionA.user.email, 'a@example.com');
+
+  const secureSignup = await request(origin, '/api/auth/signup', {
+    method: 'POST',
+    headers: { 'X-Forwarded-Proto': 'https' },
+    body: { email: 'secure@example.com', password: 'password123' },
+  });
+  assert.equal(secureSignup.status, 200);
+  assert.match(secureSignup.headers.get('set-cookie') || '', /;\s*Secure/i,
+    'A request through HTTPS must receive Secure session cookies');
+
+  const crossSite = await request(origin, '/api/auth/login', {
+    method: 'POST',
+    headers: { Origin: 'https://unrelated.example' },
+    body: { email: 'a@example.com', password: 'password123' },
+  });
+  assert.equal(crossSite.status, 403, 'A cross-origin form must not reach a state-changing route');
+
+  // Expire the access token at the mock provider while keeping the refresh
+  // token, then prove the session recovers without a second password entry.
+  await request(`http://127.0.0.1:${supabase.server.address().port}`, '/control/expire-access-tokens');
+  const refreshed = await request(origin, '/api/auth/session', { cookie: cookieA });
+  assert.equal(refreshed.status, 200);
+  assert.equal((await refreshed.json()).user.email, 'a@example.com');
+  assert.match(refreshed.headers.get('set-cookie') || '', /scholion_session=/);
+  cookieA = cookieFrom(refreshed);
 
   const empty = await (await request(origin, '/api/workspace', { cookie: cookieA })).json();
   assert.deepEqual(empty.state, { savedTrackIds: [], entries: [], attempts: [] });
@@ -185,10 +261,48 @@ test('account endpoints keep workspaces private, migrate once, delete derived da
   const restored = await (await request(origin, '/api/workspace', { cookie: cookieA })).json();
   assert.equal(restored.state.entries[0].sources[0].id, 'restored');
 
+  const outOfScope = await request(origin, '/api/workspace/restore', {
+    method: 'POST',
+    headers: { 'x-restore-token': 'restore-test-token' },
+    body: { userId: 'user-2', state: state('elsewhere') },
+  });
+  assert.equal(outOfScope.status, 403, 'A restore token must not overwrite an arbitrary user');
+  assert.match((await outOfScope.json()).error.message, /not scoped/i);
+
   assert.ok(supabase.seen.some(item => item.route === 'rest' && item.key === 'service-test-key'),
     'Workspace reads must use the server-side service key');
   assert.ok([...new Set(supabase.seen.filter(item => item.route === 'user').map(item => item.userId))].length >= 2,
     'Each cookie must resolve to a distinct user id');
+});
+
+test('config reports local Ollama unavailable without needing a running model', { timeout: 20_000 }, async t => {
+  const ollamaUrl = await mockOllama(t, { available: false });
+  const origin = await startApp(t, { OLLAMA_URL: ollamaUrl });
+  const config = await (await request(origin, '/api/config')).json();
+  assert.equal(config.accounts, false);
+  assert.equal(config.generation, 'none');
+  assert.equal(config.generationStatus.status, 'unavailable');
+  assert.match(config.generationStatus.reason, /not reachable/i);
+});
+
+test('sign-out clears the session cookie even when the account service fails', { timeout: 20_000 }, async t => {
+  const supabase = mockSupabase(t, { failLogout: true });
+  await once(supabase.server, 'listening');
+  const origin = await startApp(t, {
+    SUPABASE_URL: `http://127.0.0.1:${supabase.server.address().port}`,
+    SUPABASE_ANON_KEY: 'anon-test-key',
+    SUPABASE_SERVICE_ROLE_KEY: 'service-test-key',
+  });
+  const signup = await request(origin, '/api/auth/signup', {
+    method: 'POST', body: { email: 'logout@example.com', password: 'password123' },
+  });
+  const cookie = cookieFrom(signup);
+  const logout = await request(origin, '/api/auth/logout', { method: 'POST', cookie });
+  assert.equal(logout.status, 200);
+  assert.match(logout.headers.get('set-cookie') || '', /scholion_session=;\s*.*Max-Age=0/i);
+  const clearedCookie = cookieFrom(logout);
+  const session = await (await request(origin, '/api/auth/session', { cookie: clearedCookie })).json();
+  assert.equal(session.user, null);
 });
 
 test('account endpoints degrade cleanly without Supabase configuration', { timeout: 15_000 }, async t => {
