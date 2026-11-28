@@ -40,7 +40,13 @@ for (const file of ['dist/app.js', 'dist/study.js', 'dist/index.html']) {
   }
 }
 
-for (const file of files.filter(name => name.startsWith('scripts/'))) {
+// Only request-handling server modules are privacy-sensitive. Tooling scripts
+// (bench, build, demo, lint itself) are expected to print their own results.
+const serverSources = new Set([
+  'scripts/serve.mjs', 'scripts/study-endpoint.mjs', 'scripts/account-endpoints.mjs', 'scripts/supabase.mjs',
+]);
+for (const file of files) {
+  if (!serverSources.has(file.replace(/\\/g, '/'))) continue;
   const source = await readFile(join(root, file), 'utf8');
   for (const line of source.split(/\r?\n/)) {
     if (/console\.(log|error|warn|info|debug)\s*\(/.test(line) &&
